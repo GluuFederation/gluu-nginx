@@ -34,20 +34,20 @@ static char*
 ngx_http_gluu_ox_module_init( ngx_conf_t *cf, ngx_command_t *cmd, void *conf );
 
 static ngx_int_t
-ngx_http_gluu_ox_check_authn_type( ngx_http_gluu_ox_loc_conf_t *s_cfg );
+check_authn_type( ngx_gluu_ox_loc_conf_t *s_cfg );
 
 static char*
-ngx_http_gluu_ox_check_configs( ngx_http_gluu_ox_loc_conf_t *s_cfg, ngx_int_t authn_type_value);
+check_configs( ngx_gluu_ox_loc_conf_t *s_cfg, ngx_int_t authn_type_value);
 
 /*
  * Checking if uri is a predefined with one defined in Nginx configuration.
  */
 static ngx_int_t
-ngx_http_gluu_ox_check_predefined_url( ngx_http_request_t *r, ngx_http_gluu_ox_loc_conf_t *s_cfg );
+check_predefined_url( ngx_http_request_t *r, ngx_gluu_ox_loc_conf_t *s_cfg );
 
 /*static char* ngx_http_test(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
-	//ngx_http_gluu_ox_loc_conf_t *gluu_conf = conf;
+	//ngx_gluu_ox_loc_conf_t *gluu_conf = conf;
 
 	ngx_str_t 	*value;
 
@@ -66,9 +66,9 @@ ngx_http_gluu_ox_create_loc_config(ngx_conf_t *cf)
 {
 	D fprintf( stderr, "enter ngx_http_gluu_ox_create_loc_config\n" );
 
-	ngx_http_gluu_ox_loc_conf_t *loc_conf;
+	ngx_gluu_ox_loc_conf_t *loc_conf;
 
-	loc_conf = ngx_palloc(cf->pool, sizeof(ngx_http_gluu_ox_loc_conf_t));
+	loc_conf = ngx_palloc(cf->pool, sizeof(ngx_gluu_ox_loc_conf_t));
 	if ( loc_conf == NULL )
 		return NGX_CONF_ERROR;
 
@@ -78,7 +78,7 @@ ngx_http_gluu_ox_create_loc_config(ngx_conf_t *cf)
 
 	loc_conf->memcached_port = NGX_CONF_UNSET;
 
-	ngx_memzero(&loc_conf->uma_am_host, sizeof(ngx_http_gluu_uma_host_config));
+	ngx_memzero(&loc_conf->uma_am_host, sizeof(ngx_gluu_uma_host_config));
 
 	ngx_str_set(&loc_conf->uma_sent_user_claims, "givenName+issuingIDP+mail+uid");
 	ngx_str_set(&loc_conf->cookied_name, "ox_session_id");
@@ -92,8 +92,8 @@ ngx_http_gluu_ox_create_loc_config(ngx_conf_t *cf)
 static char*
 ngx_http_gluu_ox_merge_loc_config( ngx_conf_t *cf, void *parent, void *child )
 {
-	ngx_http_gluu_ox_loc_conf_t 	*prev = parent;
-	ngx_http_gluu_ox_loc_conf_t		*conf = child;
+	ngx_gluu_ox_loc_conf_t 	*prev = parent;
+	ngx_gluu_ox_loc_conf_t		*conf = child;
 
 	ngx_conf_merge_str_value( conf->cookie_path, prev->cookie_path, "" );
 
@@ -119,24 +119,10 @@ static ngx_http_module_t ngx_http_gluu_ox_module_ctx = {
 static
 ngx_command_t ngx_http_gluu_ox_commands[] = {
 
-/*	{ ngx_string("auth_basic"),
-	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-	  ngx_http_set_complex_value_set,
-	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, realm),
-	  NULL },
-
-	{ ngx_string("auth_basic_user_file"),
-	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-	  ngx_http_auth_basic_user_file,
-	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, user_file),
-	  NULL },
-*/
 	{ ngx_string("Gluu_ox"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
 	  ngx_http_gluu_ox_module_init,
-	  0, //NGX_HTTP_LOC_CONF_OFFSET,
+	  0,
 	  0,
 	  NULL },
 
@@ -144,168 +130,168 @@ ngx_command_t ngx_http_gluu_ox_commands[] = {
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, authn_type),
+	  offsetof(ngx_gluu_ox_loc_conf_t, authn_type),
 	  NULL },
 
 	{ ngx_string("cookie_path"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, cookie_path),
+	  offsetof(ngx_gluu_ox_loc_conf_t, cookie_path),
 	  NULL },
 
 	{ ngx_string("app_dest_url"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, app_dest_url),
+	  offsetof(ngx_gluu_ox_loc_conf_t, app_dest_url),
 	  NULL },
 
 	{ ngx_string("client_credits_path"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, client_credits_path),
+	  offsetof(ngx_gluu_ox_loc_conf_t, client_credits_path),
 	  NULL },
 
 	{ ngx_string("send_headers"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_FLAG,
 	  ngx_conf_set_flag_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, send_headers),
+	  offsetof(ngx_gluu_ox_loc_conf_t, send_headers),
 	  NULL },
 
 	{ ngx_string("oxd_host_addr"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, oxd_host),
+	  offsetof(ngx_gluu_ox_loc_conf_t, oxd_host),
 	  NULL },
 
 	{ ngx_string("oxd_port_num"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_num_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, oxd_port),
+	  offsetof(ngx_gluu_ox_loc_conf_t, oxd_port),
 	  NULL },
 
 	{ ngx_string("memcached_host_addr"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, memcached_host),
+	  offsetof(ngx_gluu_ox_loc_conf_t, memcached_host),
 	  NULL },
 
 	{ ngx_string("memcached_port_num"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_num_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, memcached_port),
+	  offsetof(ngx_gluu_ox_loc_conf_t, memcached_port),
 	  NULL },
 
   	{ ngx_string("openid_provider"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, openid_provider),
+	  offsetof(ngx_gluu_ox_loc_conf_t, openid_provider),
 	  NULL },
 
 	{ ngx_string("openid_client_redirect_uris"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, openid_client_redirect_uris),
+	  offsetof(ngx_gluu_ox_loc_conf_t, openid_client_redirect_uris),
 	  NULL },
 
 	{ ngx_string("openid_requested_scope"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, openid_scope),
+	  offsetof(ngx_gluu_ox_loc_conf_t, openid_scope),
 	  NULL },
 
 	{ ngx_string("openid_client_name"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, openid_client_name),
+	  offsetof(ngx_gluu_ox_loc_conf_t, openid_client_name),
 	  NULL },
 
 	{ ngx_string("openid_requested_acr"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, openid_request_acr),
+	  offsetof(ngx_gluu_ox_loc_conf_t, openid_request_acr),
 	  NULL },
 
 	{ ngx_string("openid_response_type"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, opneid_response_type),
+	  offsetof(ngx_gluu_ox_loc_conf_t, opneid_response_type),
 	  NULL },
 
 	{ ngx_string("uma_authorization_server"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, uma_authorization_server),
+	  offsetof(ngx_gluu_ox_loc_conf_t, uma_authorization_server),
 	  NULL },
 
 	{ ngx_string("uma_resource_name"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, uma_resource_name),
+	  offsetof(ngx_gluu_ox_loc_conf_t, uma_resource_name),
 	  NULL },
 
 	{ ngx_string("uma_get_scope"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, uma_get_scope),
+	  offsetof(ngx_gluu_ox_loc_conf_t, uma_get_scope),
 	  NULL },
 
 	{ ngx_string("uma_put_scope"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, uma_put_scope),
+	  offsetof(ngx_gluu_ox_loc_conf_t, uma_put_scope),
 	  NULL },
 
 	{ ngx_string("uma_post_scope"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, uma_post_scope),
+	  offsetof(ngx_gluu_ox_loc_conf_t, uma_post_scope),
 	  NULL },
 
 	{ ngx_string("uma_delete_scope"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, uma_delete_scope),
+	  offsetof(ngx_gluu_ox_loc_conf_t, uma_delete_scope),
 	  NULL },
 
 	{ ngx_string("app_post_logout_url"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, app_post_logout_url),
+	  offsetof(ngx_gluu_ox_loc_conf_t, app_post_logout_url),
 	  NULL },
 
 	{ ngx_string("app_post_logout_redirect_url"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, app_post_logout_redirect_url),
+	  offsetof(ngx_gluu_ox_loc_conf_t, app_post_logout_redirect_url),
 	  NULL },
 
 	{ ngx_string("ox_logout_url"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
-	  offsetof(ngx_http_gluu_ox_loc_conf_t, ox_logout_url),
+	  offsetof(ngx_gluu_ox_loc_conf_t, ox_logout_url),
 	  NULL },
 
 	  ngx_null_command
@@ -332,19 +318,17 @@ ngx_module_t ngx_http_gluu_ox_module = {
 static ngx_int_t
 ngx_http_gluu_ox_module_handler( ngx_http_request_t* r )
 {
-	D fprintf( stderr, "request_line: %s\n", r->request_line.data );
-	D fprintf( stderr, "uri 		: %s\n", r->uri.data );
-	D fprintf( stderr, "args 		: %s\n", r->args.data );
-	D fprintf( stderr, "exten 		: %s\n", r->exten.data );
-	D fprintf( stderr, "unparsed_uri: %s\n", r->unparsed_uri.data );
-
-	ngx_log_debug0( NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "Enter ngx_http_gluu_ox_module_handler" );
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "request_line: %s\n", r->request_line.data );
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "uri 		 : %s\n", r->uri.data );
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "args 		 : %s\n", r->args.data );
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "exten 		 : %s\n", r->exten.data );
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "unparsed_uri: %s\n", r->unparsed_uri.data );
 
 	/* gluu ox module location configuration */
-	ngx_http_gluu_ox_loc_conf_t	*ox_loc_conf;
+	ngx_gluu_ox_loc_conf_t	*ox_loc_conf;
 	
 	/* Getting module configuration struct info */
-	ox_loc_conf = (ngx_http_gluu_ox_loc_conf_t*)ngx_http_get_module_loc_conf(r, ngx_http_gluu_ox_module);
+	ox_loc_conf = (ngx_gluu_ox_loc_conf_t*)ngx_http_get_module_loc_conf(r, ngx_http_gluu_ox_module);
 
 	/* Return Value */
 	ngx_int_t 	ret;
@@ -364,34 +348,39 @@ ngx_http_gluu_ox_module_handler( ngx_http_request_t* r )
 	if( ngx_strcmp( realm.data, "Gluu_ox" ) != 0 )
 		return NGX_DECLINED; */
 
-	if( ngx_strcasecmp(ox_loc_conf->cookie_path.data, (u_char*)"/Protected" ) != 0 )
+	if( ngx_strcasecmp(ox_loc_conf->cookie_path.data, (u_char*)"/protected" ) != 0 )
 	{
-		ngx_log_error( NGX_LOG_INFO, r->connection->log, 0, "cookie_path success Ox parameters, Please check Ox configuration in Nginx config file!" );
-	}
-	else
-	{
-		ngx_log_error( NGX_LOG_INFO, r->connection->log, 0, "cookie_path invailed Ox parameters, Please check Ox configuration in Nginx config file!" );
+		return ox_util_html_send_error(
+									r, 
+									"ngx_http_gluu_ox_module", 
+									"invaild cookie_path config in ox parameters, Please check ox configuration in Nginx config file!",
+									NGX_HTTP_UNAUTHORIZED );
 	}
 
-	ngx_int_t 	authn_type = ngx_http_gluu_ox_check_authn_type(ox_loc_conf);
+	ngx_int_t authn_type = check_authn_type(ox_loc_conf);
 	
 	if( authn_type == NGX_ERROR )
 	{
-		ngx_log_error( NGX_LOG_INFO, r->connection->log, 0, "Invalid Ox parameters, Please check Ox configuration in Nginx config file!" );
-//		return ngx_http_show_error();
-		return NGX_ERROR;
+		return ox_util_html_send_error(
+									r, 
+									"ngx_http_gluu_ox_module", 
+									"invaild authn_type config in ox parameters, Please check ox configuration in Nginx config file!",
+									NGX_HTTP_UNAUTHORIZED );
 	}
 
-	if( ngx_http_gluu_ox_check_configs( ox_loc_conf, authn_type ) == NGX_CONF_ERROR)
+	if( check_configs( ox_loc_conf, authn_type ) == NGX_CONF_ERROR)
 	{
-		ngx_log_error( NGX_LOG_INFO, r->connection->log, 0, "Invalid Ox parameters, Please check Ox configuration in Nginx config file!" );
-		return NGX_ERROR;
+		return ox_util_html_send_error(
+									r, 
+									"ngx_http_gluu_ox_module", 
+									"Invaild ox parameters, Please check ox configuration in Nginx config file!",
+									NGX_HTTP_UNAUTHORIZED );
 	}
 
 	/* memcached area (unused)*/
 
 	/* if aceess, redirect, ok */
-	ret = ngx_http_gluu_ox_check_predefined_url( r, ox_loc_conf );
+	ret = check_predefined_url( r, ox_loc_conf );
 	switch( ret )
 	{
 	case NONE_PREDEFINED:
@@ -408,10 +397,7 @@ ngx_http_gluu_ox_module_handler( ngx_http_request_t* r )
 		}
 	}
 
-	/* Making a record that is being called*/
-	ngx_log_debug( NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-				"============= %s module has been called ==============", PACKAGE_STRING );
-
+	
 	/* Parsing the get/post params */
 	
 	if( login == 1)
@@ -420,6 +406,7 @@ ngx_http_gluu_ox_module_handler( ngx_http_request_t* r )
 	}
 
 	return NGX_OK;
+
 }
 
 static char*
@@ -434,22 +421,23 @@ ngx_http_gluu_ox_module_init( ngx_conf_t *cf, ngx_command_t *cmd, void *conf )
 }
 
 static ngx_int_t
-ngx_http_gluu_ox_check_authn_type( ngx_http_gluu_ox_loc_conf_t *s_cfg )
+check_authn_type( ngx_gluu_ox_loc_conf_t *s_cfg )
 {
-	if( ngx_strcmp( s_cfg->authn_type.data, "") == 0)
-		return (ngx_int_t)NGX_CONF_ERROR;
-	else if( ngx_strcmp( s_cfg->authn_type.data, "Connect" ) == 0 )
-		return TRUSTED_RP_CONNECT;
-/*	else if( ngx_strcmp( s_cfg->authn_type, "SAML" ) == 0)
-		return TRUSTED_RP_SAML */
+	if( ngx_strcmp( s_cfg->authn_type.data, "" ) == 0 )
+	{
+		return NGX_ERROR;
+	}	
 	else
-		return (ngx_int_t)NGX_CONF_ERROR;
-
-	return (ngx_int_t)NGX_CONF_ERROR;
+	{
+		if( ngx_strcmp( s_cfg->authn_type.data, "openid-connect" ) == 0 )
+			return TRUSTED_RP_CONNECT;
+		else
+			return NGX_ERROR;
+	}
 }
 
 static char*
-ngx_http_gluu_ox_check_configs( ngx_http_gluu_ox_loc_conf_t *s_cfg, ngx_int_t authn_type_value)
+check_configs( ngx_gluu_ox_loc_conf_t *s_cfg, ngx_int_t authn_type_value)
 {
 	/* checking typical directives in ox location configuration. */
 	if ( ngx_strcmp( s_cfg->authn_type.data, "" ) == 0 ||
@@ -481,14 +469,6 @@ ngx_http_gluu_ox_check_configs( ngx_http_gluu_ox_loc_conf_t *s_cfg, ngx_int_t au
 
 			return NGX_CONF_OK;
 		}
-/*	case TRUSTED_RP_SAML:
-		{
-			if ( ngx_strcmp( s_cfg->SAML_redirect_url.data, "") == 0 )
-				return NGX_CONF_ERROR;
-
-			return NGX_CONF_OK;
-		}
-	}*/
 	default:
 		return NGX_CONF_ERROR;
 	}
@@ -498,7 +478,7 @@ ngx_http_gluu_ox_check_configs( ngx_http_gluu_ox_loc_conf_t *s_cfg, ngx_int_t au
  * Checking if uri is a predefined with one defined in Nginx configuration.
  */
 static ngx_int_t
-ngx_http_gluu_ox_check_predefined_url( ngx_http_request_t *r, ngx_http_gluu_ox_loc_conf_t *s_cfg )
+check_predefined_url( ngx_http_request_t *r, ngx_gluu_ox_loc_conf_t *s_cfg )
 {
 	ngx_str_t 	path;
 	ngx_uint_t	flag;	
@@ -533,21 +513,4 @@ ngx_http_gluu_ox_check_predefined_url( ngx_http_request_t *r, ngx_http_gluu_ox_l
 	}
 
 	return NONE_PREDEFINED;
-}
-/*
- * if error, return error message page.
- */
-ngx_int_t 
-show_error( ngx_http_request_t *r, ngx_http_gluu_ox_loc_conf_t *s_cfg, u_char *message )
-{
-/*	u_char *uri_loc = {0, }, *name = {0, };
-	//r->args = NULL;
-
-	if( ngx_strcmp( r->uri.data, "") != 0 )
-		name = r->uri.data;
-	else
-		name = " ";
-*/
-
-	return NGX_OK;
 }

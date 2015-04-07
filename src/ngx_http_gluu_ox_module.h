@@ -30,6 +30,8 @@
  #include <ngx_inet.h>
  #include <nginx.h>
 
+ #include "ngx_gluu_ox_utils.h"
+
 
 /* authentication mode */
 #define TRUSTED_RP_NONE		0
@@ -56,9 +58,9 @@ enum {
  typedef struct {
  	ngx_str_t	host;
  	ngx_str_t	scope[5];
- }ngx_http_gluu_uma_host_config;
+ }ngx_gluu_uma_host_config;
 
- typedef struct {
+typedef struct {
 // 	ngx_http_complex_value_t	realm;
 // 	ngx_http_complex_value_t	user_file;
  	ngx_str_t	authn_type;
@@ -106,21 +108,13 @@ enum {
 
  	ngx_str_t	admin_url;
  	ngx_str_t	uma_rs_host;
-	ngx_http_gluu_uma_host_config	uma_am_host[3];
+	ngx_gluu_uma_host_config	uma_am_host[3];
 	ngx_str_t	uma_sent_user_claims;
 	ngx_str_t	cookied_name;
 	ngx_int_t	cookie_lifespan;
- }ngx_http_gluu_ox_loc_conf_t;
+ }ngx_gluu_ox_loc_conf_t;
 
 
 #include "ngx_gluu_ox_config.h"
-
-/*
- * if error, return error message page.
- */
- ngx_int_t 
- show_error( ngx_http_request_t *r, ngx_http_gluu_ox_loc_conf_t *s_cfg, u_char *message );
-
-
 
 #endif
