@@ -6,8 +6,26 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
+
+typedef struct{
+	u_char *key;
+	u_char *value;
+}ngx_params_t;
+
+
 ngx_int_t
-ox_util_html_send_error( 
+ox_utils_push_data( 
+			ngx_params_t 	*data,
+			u_char 			*key,
+			u_char 			*value );
+
+u_char *
+ox_utils_find_array_value(
+			ngx_params_t 	*data,
+			u_char			*key );
+
+ngx_int_t
+ox_utils_html_send_error( 
 					ngx_http_request_t 	*r, 
 					char 				*error, 
 					char 				*description, 
@@ -32,19 +50,39 @@ ox_utils_http_send(
 /*
  * read the POST parameters in to a array
  */
+/*
 ngx_int_t
 ox_utils_read_post_params( 
 			ngx_http_request_t 	*r, 
 			ngx_table_elt_t 	*table );
+*/
+
+/*
+ * read all bytes from the HTTP request
+ */
+/*
+ngx_int_t
+ox_utils_read( 
+		ngx_http_request_t 	*r, 
+		ngx_table_elt_t 	*table );
+*/
+ngx_params_t *
+ox_utils_init_array();
+
+ngx_int_t
+ox_utils_read_params( 
+			ngx_http_request_t 	*r, 
+			ngx_params_t 	*table );
 
 /*
  * read form-encoded parameters from a string in to a array
  */
 ngx_int_t 
-ox_util_read_from_encoded_params( 
+ox_utils_read_from_encoded_params( 
 						ngx_http_request_t 	*r,
-						ngx_table_elt_t 	*table,
+						ngx_params_t 	*params,
 						const u_char 		*data );
+
 
 /*
  * Copies everything from line up to stop to a new string.
