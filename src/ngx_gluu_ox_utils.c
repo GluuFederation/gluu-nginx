@@ -316,6 +316,10 @@ ox_utils_read_from_encoded_params(
 {
 	u_char *key = NULL, *val = NULL;
 
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, 
+					"ox_utils_read_from_encoded_params [data: %s]\n", 
+					data );
+
 	while ( data && *data && ( val = ox_utils_get_word( &data, '&' ) ) ) {
 		key = ox_utils_get_word( (const u_char **)&val, '=' );
 		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, 
@@ -375,20 +379,16 @@ ox_utils_unescape_string( ngx_http_request_t *r, const u_char *str )
 		return NULL;
 	}
 
-	char *s = NULL;
-	ngx_memcpy( s, str, ngx_strlen( str ) + 1 );
-
-	char *rs = curl_easy_unescape( curl, s, 0, 0 );
+	char *rs = curl_easy_unescape( curl, (char *)str, 0, 0 );
 
 	if( rs == NULL ) {
 		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "curl_easy_unescape() error" );
 		return NULL;	
 	}
 
-	ngx_memcpy( result.data, rs, ngx_strlen( s ) + 1 );
-	result.len = ngx_strlen( s );
-//	ngx_str_null( result );
-//	ngx_str_set( result, s );
+	result.data = malloc( ngx_strlen( rs ) + 1 );
+	ngx_memcpy( result.data, rs, ngx_strlen( rs ) + 1 );
+	result.len = ngx_strlen( result.data );
 
 	u_char *rv = ngx_pstrdup( r->pool, &result );
 
