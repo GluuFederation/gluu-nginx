@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "ngx_gluu_ox_utils.h"
+#include "ngx_http_gluu_ox_module.h"
 
 #include <curl/curl.h>
 
@@ -156,293 +156,96 @@ ox_utils_http_send(
     return ngx_http_output_filter( r, &out );
 }
 
-
-/*
- * read the POST parameters in to a table
- */
-/*
+/* see if the currently accessed path matches a path from a defined URL */
 ngx_int_t
-ox_utils_read_post_params( 
-			ngx_http_request_t 	*r, 
-			ngx_table_elt_t 	*table )
-{
-	const u_char *data = NULL;
+oidc_util_request_matchs_url(
+						ngx_http_request_t 	*r,
+						ngx_str_t			url ) {
 
-	if( r->method != NGX_HTTP_POST )
+	ngx_str_t 	redirect_url;
+//	ngx_uint_t 	flags = NGX_HTTP_LOG_UNSAFE;
+
+	ngx_str_null( &redirect_url );
+	
+//	ngx_http_parse_unsafe_uri( r, &url, &temp, &flags );
+	if( ngx_gluu_ox_parse_url( r, &url, &redirect_url ) != NGX_OK )
 		return NGX_ERROR;
 
-//	if( ox_utils_read( r, &data ) != NGX_OK )
-//		return NGX_ERROR;
+	u_char 	*p;
+	size_t 	len;
 
-	return ox_utils_read_from_encoded_params( r, table, data );
-}
-*/
+	len = (r->uri_end - r->uri_start);
 
-/*
- * read all bytes from the HTTP request
- */
-/*
-ngx_int_t
-ox_utils_read( 
-		ngx_http_request_t 	*r, 
-		ngx_table_elt_t 	*table )
-{
-
-	if( r->headers_out.content_type.len == 0 )
+	if( len == 0 )
 		return NGX_ERROR;
-	else
-	{
 
-	}
+	p = ngx_pnalloc( r->pool, len + 1 );
+
+	if( p == NULL )
+		return NGX_ERROR;
+
+	ngx_cpystrn( p, r->uri.data, len + 1 );
+
+	if( ngx_strcmp( p, redirect_url.data ) != NGX_OK )
+		return NGX_ERROR;
+
 	return NGX_OK;
 }
-*/
-
-ngx_params_t *
-ox_utils_init_array()
-{
-	ngx_params_t	*params = ( ngx_params_t *)malloc( sizeof( ngx_params_t ) * sizeof( params ) );
-	ngx_uint_t i = 0;
-
-	if( params == NULL )
-		return NULL;
-
-	for ( i = 0; i < sizeof(params); ++i )
-	{
-		params[i].key = NULL;
-		params[i].value = NULL;
-	}
-
-	return params;
-}
 
 ngx_int_t
-ox_utils_push_data( 
-			ngx_params_t 	*data,
-			u_char 			*key,
-			u_char 			*value )
-{
-	ngx_int_t 	index = -1;
-	ngx_int_t 	i;
+ngx_gluu_ox_parse_url( 
+				ngx_http_request_t *r,
+				ngx_str_t 	*uri,
+				ngx_str_t 	*args ) {
 
-	for ( i = 0; i < (ngx_int_t) sizeof( data ); ++i )
+
+	u_char 			ch, *p;
+	size_t 			len, i;
+	ngx_uint_t 		quoted;
+
+	len = uri->len;
+	p = uri->data;
+
+	if( len == 0 || p[0] == '?' )
+		return NGX_ERROR;
+
+	if ( p[0] == '.' && len < 1 && p[1] == '.'
+		&& ( len == 2 || ngx_path_separator(p[2]) ) )
+		return NGX_ERROR;
+
+	for( i = 0; i < len; i ++ )
 	{
-		/* code */
-		if( data[i].key == NULL || data[i].value == NULL )
-		{
-			index = i;
-			break;
-		}
-	}
+		ch = *p ++;
 
-	if( index < 0 )
-		index = sizeof( data );
-	
-	if( key != NULL || value != NULL )
-	{
-		data[index].key = key;
-		data[index].value = value;
-	}
+		if( ch == ':' && *p ++ == '/' && *p ++ == '/')
+			quoted = 1;
 
-	return index;
-}
-
-u_char *
-ox_utils_find_array_value(
-			ngx_params_t 	*data,
-			u_char			*key )
-{
-	ngx_int_t 	num = sizeof( data );
-	u_char 		*rc;
-	int i;
-
-	rc = (u_char *)malloc( sizeof( u_char * ) );
-
-	if( key == NULL || ngx_strlen( key ) == 0 )
-		return rc;
-
-	if( num > 0 )
-	{
-		for ( i = 0; i < num; ++i )
-		{
-			if( data[i].key == NULL || data[i].value == NULL )
-				continue;
-
-			if( ngx_strcasecmp( data[i].key, key ) == 0 )
-			{
-//				ngx_cpystrn( rc, data[i].value, ngx_strlen( data[i].value ) + 1 );
-				rc = data[i].value;
-				
+		if( ngx_path_separator(ch) && i > 2 ) {
+			if( quoted == 1) {
+				args->data = p - 1;
+				args->len = ngx_strlen( args->data );
 				break;
 			}
+
 		}
-	}
-
-	return rc;
-}
-
-ngx_int_t
-ox_utils_read_params( 
-			ngx_http_request_t 	*r, 
-			ngx_params_t 	*table )
-{
-	if( r->method == NGX_HTTP_GET && r->args.data != NULL )
-	{
-		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, 
-					"ox_utils_read_params:NGX_HTTP_GET [args 		 : %s]\n", 
-					r->args.data ? r->args.data : (u_char *)"" );
-		return ox_utils_read_from_encoded_params( r, table, r->args.data );
-	}
-	else if( r->method == NGX_HTTP_POST)
-	{
-		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, 
-					"ox_utils_read_params:NGX_HTTP_POST [args 		 : %s]\n", 
-					r->args.data ? r->args.data : (u_char *)"" );
-
-		return NGX_OK;
-	}
-
-	return NGX_HTTP_NOT_ALLOWED;
-}
-
-/*
- * read form-encoded parameters from a string in to a table
- */
-ngx_int_t 
-ox_utils_read_from_encoded_params( 
-						ngx_http_request_t 	*r,
-						ngx_params_t 		*params,
-						const u_char 		*data )
-{
-	u_char *key = NULL, *val = NULL;
-
-	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, 
-					"ox_utils_read_from_encoded_params [data: %s]\n", 
-					data );
-
-	while ( data && *data && ( val = ox_utils_get_word( &data, '&' ) ) ) {
-		key = ox_utils_get_word( (const u_char **)&val, '=' );
-		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, 
-					"ox_utils_read_from_encoded_params [key : %s, val : %s]\n", 
-					key, val );
-		key = ox_utils_unescape_string( r, key );
-		val = ox_utils_unescape_string( r, val );
-
-		ox_utils_push_data( params, key, val );
 	}
 
 	return NGX_OK;
 }
-/*
- * Copies everything from line up to stop to a new string.
- */
-u_char *
-ox_utils_get_word( const u_char **line, u_char stop )
+
+ngx_int_t 
+utils_request_has_parameter( 
+						ngx_http_request_t *r,
+						const char *param )
 {
-	const u_char *pos = *line;
-	ngx_int_t len = 0;
-	u_char *res = NULL;
+	if( r->args.data == NULL || ngx_strcmp( r->args.data, (u_char *)"") == 0 )
+		return NGX_ERROR;
+	
+	u_char *option1 = NULL, *option2 = NULL;
 
-	while (( *pos != stop ) && *pos )
-	{
-		++pos;
-	}
+	ngx_sprintf( option1, "%s=", param );
+	ngx_sprintf( option2, "&%s=", param );
 
-	len = pos - *line;
-
-	res = (u_char *)malloc( len + 1 );
-	ngx_memcpy( res, *line, len );
-	res[len] = 0;
-
-	if( stop ) {
-		while( *pos == stop ){
-			++ pos;
-		}
-	}
-	*line = pos;
-
-	return res;
+	return ( ( (u_char *)ngx_strstr( r->args.data, option1 ) == r->args.data ) 
+			|| ( ngx_strstr( r->args.data, option2 ) != NULL ) ) ? NGX_OK : NGX_ERROR;
 }
-
-/*
- * unescape a string
- */
-u_char *
-ox_utils_unescape_string( ngx_http_request_t *r, const u_char *str )
-{
-	CURL *curl = curl_easy_init();
-	ngx_str_t 	result;
-
-	if( curl == NULL )
-	{
-		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "curl_easy_init() error" );
-		return NULL;
-	}
-
-	char *rs = curl_easy_unescape( curl, (char *)str, 0, 0 );
-
-	if( rs == NULL ) {
-		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "curl_easy_unescape() error" );
-		return NULL;	
-	}
-
-	result.data = malloc( ngx_strlen( rs ) + 1 );
-	ngx_memcpy( result.data, rs, ngx_strlen( rs ) + 1 );
-	result.len = ngx_strlen( result.data );
-
-	u_char *rv = ngx_pstrdup( r->pool, &result );
-
-	curl_free( rs );
-	curl_easy_cleanup( curl );
-
-	return rv;
-}
-
-
-/*
- * read the POST parameters in to a table;
- */
-/*u_char* strreplace( u_char* str, u_char find, u_char rep )
-{
-	int i = 0;
-
-	u_char *s = str;
-
-	while( s[i] != '\0' )
-	{
-		if( s[i] == chr )
-		{
-			s[i] = rep;
-		}
-		i ++;
-	}
-
-	return s;
-}*/
-
-/*
-u_char* strreplace( u_char* str, u_char find, u_char* rep )
-{
-	u_char *ret = str;
-	u_char *wk, *s;
-
-	wk = s = strdup( (const char*)str );
-
-	while ( *s != 0 )
-	{
-		if( *s == find )
-		{
-			while( *rep )
-				*str++ = * rep++;
-			++s;
-		}
-		else
-			*str++ = *s++;
-	}
-
-	*str = '\0';
-	free(wk);
-
-	return ret;
-}*/
-
