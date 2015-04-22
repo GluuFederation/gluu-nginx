@@ -95,13 +95,16 @@ typedef struct {
 }ngx_gluu_ox_oidc_provider_t;
 
 typedef struct {
+	/* indicates whether this is a derived config, merged from a base one */
+	ngx_uint_t 		merged;
+
  	ngx_str_t 		authn_type;
 
 	/* RedirectUri is used to correlate the response. It is reflected back to the site.*/
  	ngx_str_t 		redirect_uris;
-// 	ngx_str_t	cookie_path;
-	/* indicates whether this is a derived config, merged from a base one */
-	ngx_uint_t 		merged;
+
+ 	ngx_str_t		cookie_domain;
+ 	ngx_int_t 		cookie_http_only;
 
  	ngx_str_t	app_dest_url;
  	ngx_str_t	client_credits_path;
@@ -150,15 +153,15 @@ typedef struct {
 	ngx_str_t	cookie_name;
 	ngx_int_t	cookie_lifespan;
  }ngx_gluu_ox_loc_conf_t;
-/*
+
 typedef struct {
-	u_char 			*cookie_path;
-	u_char 			*cookie;
-	u_char 			*authn_header;
-	ngx_int_t 		return401;
-	ngx_array_t		*pass_cookies;
+	ngx_str_t 			cookie_path;
+	ngx_str_t 			cookie;
+	ngx_str_t 			authn_header;
+	ngx_int_t 			return401;
+	ngx_array_t			*pass_cookies;
 }
-*/
+
 
 typedef struct {
 	ngx_pool_t 						*pool;		/* pool to be used for this session */
@@ -222,5 +225,50 @@ ngx_int_t
 ngx_gluu_ox_oidc_proto_is_redirect_authorization_response(
 			 						ngx_http_request_t 			*r,
 			 						ngx_gluu_ox_loc_conf_t 		*s_cfg );
+
+
+
+/* session management */
+typedef struct {
+	ngx_str_t 		session_id;  /* id of this particular session */
+	ngx_str_t 		domain;
+	ngx_str_t 		remote_user; 	/* user who owns thsi particular session */
+	ngx_str_t 		path;
+	ngx_str_t 		key;
+	ngx_str_t 		value; 
+	time_t			expires; /* if > 0, the time of expiry of this session */
+
+	ngx_int_t 		cached;
+	ngx_int_t 		written;
+}ox_session_t;
+
+
+
+/* Memcached module */
+ngx_int_t
+ngx_gluu_ox_memcache_init( 
+					ngx_str_t 	cfg_host,
+					ngx_int_t  	cfg_port );
+
+ngx_int_t
+ngx_gluu_ox_memcached_set(
+					const char 	*key,
+					const char 	*value );
+
+ngx_int_t
+ngx_gluu_ox_memcached_set_timeout( 
+					const char 		*key,
+					const char 		*value,
+					unsigned int 	timeout );
+char *
+ngx_gluu_ox_memcached_get(
+					const char *key );
+
+ngx_int_t
+ngx_gluu_ox_memcached_delete(
+					const char 	*key );
+
+void
+ngx_http_memcached_destroy( void );
 
 #endif
