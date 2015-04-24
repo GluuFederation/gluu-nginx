@@ -192,16 +192,123 @@ oidc_util_request_matchs_url(
 	return NGX_OK;
 }
 
+u_char *
+ngx_gluu_ox_get_request_url( ngx_http_request_t *r ) {
+
+#if ( NGX_HAVE_INET6 )
+	struct sockaddr_in6 	*sin6;
+#endif
+	struct sockaddr_in 		*sin;
+	ngx_uint_t 			port = 80, uri_len;
+
+	size_t 	len = 0;
+	u_char 	*p, *buf;
+
+	if( r->headers_in.server.len > 0 ) {
+		len = sizeof( "http://" ) - 1 + r->headers_in.server.len;
+#if ( NGX_HTTP_SSL )
+		if ( r->connection->ssl ) {
+			/* http:// -> https:// */
+			len += 1;
+		}
+#endif
+		if( ngx_connection_local_sockaddr( r->connection, NULL, 0 ) != NGX_OK ) {
+			return NULL;
+		}
+
+		switch ( r->connection->local_sockaddr->sa_family ) {
+#if (NGX_HTTP_INET6 )
+		case AF_INET6:
+			sin6 = ( struct sockaddr_in6 * ) r->connection->local_sockaddr;
+			port = ntohs( sin6->sin6_port );
+			break;
+#endif
+		default:
+			sin = ( struct sockaddr_in * ) r->connection->local_sockaddr;
+			port = ntohs( sin->sin_port );
+			break; 
+		}
+
+		if( port > 0 && port != 80 && port != 443 && port < 65535 ) {
+			len += sizeof( ":65535" ) - 1;
+		}
+	}
+
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "===== port %d======\n", port );
+
+	if( r->unparsed_uri.len == 0 ) {
+		len += 1;
+	} else {
+		p = r->unparsed_uri.data;
+		for ( uri_len = 0; uri_len < r->unparsed_uri.len; uri_len ++ ) {
+			if( *p == '?' ) break;
+
+			p ++;
+		}
+		len += uri_len;
+	}
+
+	if ( r->args.len > 0 ) {
+		len += r->args.len + sizeof( "?" ) - 1;
+	}
+
+	buf = ( u_char * ) ngx_pcalloc( r->pool, len + 1 );
+
+	if( buf == NULL )
+		return NULL;
+
+	p = ( u_char * )buf; 
+
+	if( r->headers_in.server.len > 0 ) {
+		len = sizeof( "http://" ) - 1 + r->headers_in.server.len;
+#if ( NGX_HTTP_SSL )
+		if( r->connection->ssl ) {
+			p = ngx_copy( p, "https://", sizeof( "https://" ) - 1 );
+			p = ngx_copy( p, r->headers_in.server.data, r->headers_in.server.len );
+		} else {
+			p = ngx_copy( p, "http://", sizeof( "http://" ) - 1 );
+			p = ngx_copy( p, r->headers_in.server.data, r->headers_in.server.len );
+		}
+#else
+			p = ngx_copy( p, "http://", sizeof( "http://" ) - 1 );
+			p = ngx_copy( p, r->headers_in.server.data, r->headers_in.server.len );
+#endif
+
+		if( port > 0 && port != 80 && port != 443 && port < 65535 ) {
+			len -= sizeof( ":65535" ) - 1;
+			len += ngx_sprintf( p, ":%ui", port ) - p;
+			p = ngx_sprintf( p, ":%ui", port );
+		}
+	}
+
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "===== url %s======\n", buf );
+
+	if( r->unparsed_uri.len == 0 ) {
+		( *p++ ) = '/';
+	} else {
+		p = ngx_copy( p, r->unparsed_uri.data, uri_len );
+	}
+
+	if( r->args.len > 0 ) {
+		( *p ++ ) = '?';
+		p = ngx_sprintf( p, "%V", r->args.data );
+	}
+
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "===== full url %s======\n", buf );
+
+	return buf;
+}
+
 ngx_int_t
 ngx_gluu_ox_parse_url( 
-				ngx_http_request_t *r,
-				ngx_str_t 	*uri,
-				ngx_str_t 	*args ) {
+				ngx_http_request_t 	*r,
+				ngx_str_t 			*uri,
+				ngx_str_t 			*args ) {
 
 
 	u_char 			ch, *p;
 	size_t 			len, i;
-	ngx_uint_t 		quoted;
+	ngx_uint_t 		quoted = 0;
 
 	len = uri->len;
 	p = uri->data;
@@ -240,7 +347,7 @@ utils_request_has_parameter(
 {
 	if( r->args.data == NULL || ngx_strcmp( r->args.data, (u_char *)"") == 0 )
 		return NGX_ERROR;
-	
+
 	u_char *option1 = NULL, *option2 = NULL;
 
 	ngx_sprintf( option1, "%s=", param );

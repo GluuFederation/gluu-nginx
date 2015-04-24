@@ -26,8 +26,10 @@
 
 #include "ngx_http_gluu_ox_module.h"
 
+/*
 static 
 memcached_server_st 	*servers = NULL;
+*/
 static 
 memcached_st 		*memc;
 
@@ -41,17 +43,24 @@ ngx_gluu_ox_memcached_init(
 					ngx_int_t  	cfg_port ) {
 
 	int 	port;
-	char 	*host;
+	const char 	*host;
 
 	memcached_return 	rc;
 
 	memc = memcached_create( NULL );
 
-	host = cfg_host.len == 0 ? "localhost" : (char *)host.data;
+	/* Connection settings */
+	memcached_behavior_set( memc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, 1 );
+	memcached_behavior_set( memc, MEMCACHED_BEHAVIOR_NO_BLOCK, 1 );
+
+	host = cfg_host.len == 0 ? "localhost" : (char *)cfg_host.data;
 	port = cfg_port == 0 ? 11211 : cfg_port;
 
+/*
 	servers = memcached_server_list_append( memc, host, port, &rc );
 	rc = memcached_server_push( memc, servers );
+*/
+	rc = memcached_server_add( memc, host, port );
 
 	if( rc == MEMCACHED_SUCCESS )
 		return NGX_OK;

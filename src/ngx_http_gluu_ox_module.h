@@ -30,6 +30,10 @@
 #include <ngx_inet.h>
 #include <nginx.h>
 
+ #include <jansson.h>
+
+#define OIDC_STATE_COOKIE_PREFIX 	"ngx_gluu_ox_openidc_state_"
+
 /* flags for send_headers */
 enum {
 	SETNONE	= -1,
@@ -155,24 +159,23 @@ typedef struct {
  }ngx_gluu_ox_loc_conf_t;
 
 typedef struct {
+	/* (optional) external OP discovery page */
+	ngx_str_t 			discover_url;
 	ngx_str_t 			cookie_path;
 	ngx_str_t 			cookie;
 	ngx_str_t 			authn_header;
 	ngx_int_t 			return401;
 	ngx_array_t			*pass_cookies;
-}
-
+} oidc_dir_cfg;
 
 typedef struct {
 	ngx_pool_t 						*pool;		/* pool to be used for this session */
     ngx_str_t                       name;
-    time_t                          expires_time;
+    time_t                          expires;
     ngx_str_t                       domain;
     ngx_str_t                       path;
     ngx_http_complex_value_t        *value;
 } ngx_http_cookie_loc_conf_t;
-
-
 
 
 ngx_int_t
@@ -204,6 +207,9 @@ oidc_util_request_matchs_url(
 						ngx_http_request_t 	*r,
 						ngx_str_t			url );
 
+u_char *
+ngx_gluu_ox_get_request_url( ngx_http_request_t *r );
+
 ngx_int_t
 ngx_gluu_ox_parse_url( 
 				ngx_http_request_t *r,
@@ -225,25 +231,6 @@ ngx_int_t
 ngx_gluu_ox_oidc_proto_is_redirect_authorization_response(
 			 						ngx_http_request_t 			*r,
 			 						ngx_gluu_ox_loc_conf_t 		*s_cfg );
-
-
-
-/* session management */
-typedef struct {
-	ngx_str_t 		session_id;  /* id of this particular session */
-	ngx_str_t 		domain;
-	ngx_str_t 		remote_user; 	/* user who owns thsi particular session */
-	ngx_str_t 		path;
-	ngx_str_t 		key;
-	ngx_str_t 		value; 
-	time_t			expires; /* if > 0, the time of expiry of this session */
-
-	ngx_int_t 		cached;
-	ngx_int_t 		written;
-}ox_session_t;
-
-
-
 /* Memcached module */
 ngx_int_t
 ngx_gluu_ox_memcache_init( 
@@ -270,5 +257,63 @@ ngx_gluu_ox_memcached_delete(
 
 void
 ngx_http_memcached_destroy( void );
+
+/*
+#include <apr_pools.h>
+#include <apr_uuid.h>
+#include <apr_tables.h>
+#include <apr_time.h>
+
+typedef struct {
+	apr_pool_t 	*pool;
+	apr_uuid_t 	*uuid;
+	const char 	*remote_user;
+	apr_table_t	*entries;
+	const char 	*encoded;
+	apr_time_t	expiry;
+	long 		maxamage;
+
+	int 		dirty;
+	int 		cached;
+	int 		written;
+} session_rec;
+*/
+
+typedef struct {
+	ngx_str_t 		session_id;
+	ngx_str_t 		username;
+	ngx_str_t 		path;
+	ngx_str_t 		identify;
+	time_t 			expiry;
+}oidc_session_t;
+
+
+
+/**
+ * restore the state that was maintained between authorization request 
+ * and response in an encrypted cookie
+ **/
+ngx_int_t
+ngx_gluu_ox_oidc_restore_proto_state(
+							ngx_http_request_t 		*r,
+							ngx_gluu_ox_loc_conf_t 	*s_cfg,
+							u_char 					*state,
+							json_t 					**proto_state );
+
+u_char *
+ngx_gluu_ox_oidc_get_state_cookie_name(
+					ngx_http_request_t 	*r,
+					u_char 				*state );
+
+/**
+ * set a cookie in the HTTP response headers
+ **/
+void
+ngx_gluu_ox_oidc_util_set_cookie(
+						ngx_http_request_t 	*r,
+						ngx_gluu_ox_loc_conf_t 		*s_conf,
+						ngx_str_t 			*cookie_name,
+						ngx_str_t 			*cookie_value,
+						time_t 				expires );
 
 #endif

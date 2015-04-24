@@ -39,6 +39,4 @@ ngx_gluu_ox_oidc_proto_is_redirect_authorization_response(
  	 			&& utils_request_has_parameter( r, "state" )
  	 			&& ( utils_request_has_parameter( r, "id_token" )
  	 						|| utils_request_has_parameter( r, "code" ) ) );
-
-
 }
