@@ -30,143 +30,171 @@
 #include <ngx_inet.h>
 #include <nginx.h>
 
- #include <jansson.h>
+#include "cache/cache.h"
+#include "ngx_gluu_ox_config.h"
 
-#define OIDC_STATE_COOKIE_PREFIX 	"ngx_gluu_ox_openidc_state_"
+#include <jansson.h>
 
-/* flags for send_headers */
-enum {
-	SETNONE	= -1,
-	SETOFF	= 0,
-	SETON = 1
-};
+#define  OPENSSL_THREAD_DEFINES
 
-/* return values for predefined URL */
-enum {
-	NONE_PREDEFINED,
-	ADMIN_PREDEFINED,
-	LOGIN_PREDEFINED,
-	LOGOUT_PREDEFINED
-};
+#include <openssl/opensslconf.h>
+#include <openssl/opensslv.h>
+#include <openssl/evp.h>
+
+#include <curl/curl.h>
+
+//#ifdef (OPENSSL_VERSION_NUMBER < 0x01000000)
+//#define OPENSSL_NO_THREADID
+//#endif
+
 
 /* UMA config variables */
  typedef struct {
  	ngx_str_t	host;
  	ngx_str_t	scope[5];
- }ngx_gluu_uma_host_config;
+ }ox_uma_host_config;
 
 typedef struct {
 	ngx_str_t	url;
 	ngx_int_t 	refresh_internal;
 	ngx_int_t	ssl_validate_server;
-}ngx_gluu_ox_oidc_jwks_uri_t;
+}ox_jwks_uri_t;
 
 typedef struct {
-	u_char 	*metadata_url;
-	u_char 	*issuer;
-	u_char 	*authorization_endpoint_url;
-	u_char 	*token_endpoint_url;
-	u_char 	*token_endpoint_auth;
-	u_char 	*token_endpoint_params;
-	u_char 	*userinfo_endpoint_url;
-	u_char 	*registration_endpoint_url;
-	u_char 	*check_session_iframe;
-	u_char 	*end_session_endpoint;
-	u_char 	*jwks_uri;
-	u_char 	*client_id;
-	u_char 	*client_secret;
+	ngx_str_t 	metadata_url;
+	ngx_str_t 	issuer;
+	ngx_str_t 	authorization_endpoint_url;
+	ngx_str_t 	token_endpoint_url;
+	ngx_str_t 	token_endpoint_auth;
+	ngx_str_t 	token_endpoint_params;
+	ngx_str_t 	userinfo_endpoint_url;
+	ngx_str_t 	registration_endpoint_url;
+	ngx_str_t 	check_session_iframe;
+	ngx_str_t 	end_session_endpoint;
+	ngx_str_t 	jwks_uri;
+	ngx_str_t 	client_id;
+	ngx_str_t 	client_secret;
 
+	/* the next ones function as global default settings too */
 	ngx_int_t 	ssl_validate_server;
-	u_char 	*client_name;
-	u_char 	*client_contract;
-	u_char 	*registration_token;
-	u_char 	*registration_endpoint_json;
-	u_char 	*scope;
-	u_char 	*response_type;
-	u_char 	*response_mode;
+	ngx_str_t 	client_name;
+	ngx_str_t 	client_contact;
+	ngx_str_t 	registration_token;
+	ngx_str_t 	registration_endpoint_json;
+	ngx_str_t 	scope;
+	ngx_str_t 	response_type;
+	ngx_str_t 	response_mode;
 	ngx_int_t	jwks_refresh_interval;
 	ngx_int_t	idtoken_iat_slack;
-	u_char 	*auth_request_param;
+	ngx_str_t 	auth_request_params;
 	ngx_int_t 	session_max_duration;
 
-	u_char 	*client_jwks_uri;
-	u_char 	*id_token_signed_response_alg;
-	u_char 	*id_token_encrypted_response_alg;
-	u_char 	*id_token_encrypted_response_enc;
-	u_char 	*userinfo_signed_response_alg;
-	u_char 	*userinfo_encrypted_response_alg;
-	u_char 	*userinfo_encrypted_response_enc;
-}ngx_gluu_ox_oidc_provider_t;
+	ngx_str_t 	client_jwks_uri;
+	ngx_str_t 	id_token_signed_response_alg;
+	ngx_str_t 	id_token_encrypted_response_alg;
+	ngx_str_t 	id_token_encrypted_response_enc;
+	ngx_str_t 	userinfo_signed_response_alg;
+	ngx_str_t 	userinfo_encrypted_response_alg;
+	ngx_str_t 	userinfo_encrypted_response_enc;
+}ox_provider_t;
+
+typedef struct {
+	ngx_str_t 		claim_name;
+	ngx_str_t 		reg_exp;
+}ox_remote_user_claim_t;
+
+typedef struct {
+	ngx_int_t 		ssl_validate_server;
+	ngx_str_t 		client_id;
+	ngx_str_t 		client_secret;
+	ngx_str_t 		introspection_endpoint_url;
+	ngx_str_t 		introspection_endpoint_method;
+	ngx_str_t 		introspection_endpoint_params;
+	ngx_str_t 		introspection_endpoint_auth;
+	ngx_str_t 		introspection_token_param_name;
+	ngx_str_t 		introspection_token_expiry_claim_name;
+	ngx_str_t 		introspection_token_expiry_claim_format;
+	ngx_int_t 		introspection_token_expiry_claim_required;
+	ox_remote_user_claim_t 	remote_user_claim;
+	ngx_hash_t 		*verify_shared_keys;
+	ngx_str_t 		verify_jwks_uri;
+	ngx_hash_t 		*verify_public_keys;
+}ox_oauth_t;
 
 typedef struct {
 	/* indicates whether this is a derived config, merged from a base one */
 	ngx_uint_t 		merged;
-
- 	ngx_str_t 		authn_type;
-
+	/* external OP discovery page */
+ 	ngx_str_t 		discover_url;
 	/* RedirectUri is used to correlate the response. It is reflected back to the site.*/
- 	ngx_str_t 		redirect_uris;
+ 	ngx_str_t 		redirect_uri;
+ 	/* (optional) default URL for third-party initiated SSO */
+ 	ngx_str_t 		default_sso_url;
+ 	/* (optional) default URL to go to after logout */
+ 	ngx_str_t 		default_slo_url;
 
- 	ngx_str_t		cookie_domain;
+ 	/* public keys in JWK format, used by parters for encrypting JWTs sent to us */
+ 	ngx_hash_t 		*public_keys;
+ 	/* private keys in JWK format used for decrypting encrypted JWTs sent to us */
+ 	ngx_hash_t 		*private_keys;
+ 	/* a pointer to the (single) provider that we connect to */
+ 	/* NB: if metadata_dir is set, these settings will function as defaults for the metadata read from there. */
+ 	ox_provider_t 	provider;
+ 	/* a pointer to the oAuth server settings */
+ 	ox_oauth_t 		oauth;
+
+ 	/* directory that holds the provider & client metadata files */
+ 	ngx_str_t 		metadata_dir;
+ 	/* type of session management/storage */
+ 	ngx_int_t 		session_type;
+
+ 	/* pointer to cache functions */
+ 	//ox_cache_t 		*cache;
+ 	//void 				*cache_cfg;
+ 	/* cache_type = file: directory that holds the cache files (if not set, we`ll try and use an OS defined one like "/tmp") */
+ 	ngx_str_t 		cache_file_dir;
+ 	/* cache_type = file: clean interval */
+ 	ngx_int_t 		cache_file_clean_interval;
+ 	/* cache_type = memcache: list of memcache host/port servers to use */
+ 	ngx_str_t 		cache_memcache_servers;
+ 	/* cache_type = shm: size of the shared memory segment (cq. max number of cached entries) */
+ 	ngx_int_t 		cache_shm_size_max;
+ 	/* cache_type = shm: maximum size in bytes of a cache entry */
+ 	ngx_int_t 		cache_shm_entry_size_max;
+
+#ifdef USE_LIBHIREDIS
+ 	/* cache_type = redis: Redis host/port server to use */
+ 	ngx_str_t 		cache_redis_server;
+#endif
+
+ 	/* tell the module to strip any ngx_gluu_ox releated headers that already have been set by the user-agent, normally required for secure operation */
+ 	ngx_int_t 		scrub_request_headers;
+ 	ngx_int_t 		http_timeout_long;
+ 	ngx_int_t 		http_timeout_short;
+ 	ngx_int_t 		state_timeout;
+ 	ngx_int_t 		session_inactivity_timeout;
+
+ 	ngx_str_t 		cookie_domain;
+ 	ngx_str_t 		claim_delimiter;
+ 	ngx_str_t 		claim_prefix;
+ 	ox_remote_user_claim_t 		remote_user_claim;
+ 	ngx_int_t 		pass_idtoken_as;
  	ngx_int_t 		cookie_http_only;
 
- 	ngx_str_t	app_dest_url;
- 	ngx_str_t	client_credits_path;
- 	ngx_flag_t	send_headers;
+ 	ngx_str_t 		outgoing_proxy;
+ 	ngx_str_t 		crypto_passphrase;
 
- 	/* Only valid if authn_type is SAML method(Optional) */
-// 	ngx_str_t	SAML_redirect_url;
-
- 	/* oxd configuration */
- 	ngx_str_t	oxd_host;
- 	ngx_int_t	oxd_port;
-
- 	/* memcached*/
- 	ngx_str_t	memcached_host;
- 	ngx_int_t	memcached_port;
-
- 	/* OpenID connect */
-// 	ngx_str_t	openid_provider;
- 	ngx_gluu_ox_oidc_provider_t		openid_provider;
-
- 	/* Scope is a concatenated list of requested permissions */
- 	ngx_str_t	openid_scope;
-
- 	/* Human readabile name to be registered with the Authorization Server for this website. If in doubt, use the URL for the protected folder. */
- 	ngx_str_t	openid_client_name;
- 	ngx_str_t	openid_request_acr;
- 	ngx_str_t	opneid_response_type;
-
- 	/* UMA */
- 	ngx_str_t	uma_authorization_server;
- 	ngx_str_t	uma_resource_name;
- 	ngx_str_t	uma_get_scope;
- 	ngx_str_t	uma_put_scope;
- 	ngx_str_t	uma_post_scope;
- 	ngx_str_t	uma_delete_scope;
-
- 	/* Logout */
- 	ngx_str_t	app_post_logout_url;
- 	ngx_str_t	app_post_logout_redirect_url;
- 	ngx_str_t	ox_logout_url;
-
- 	ngx_str_t	admin_url;
- 	ngx_str_t	uma_rs_host;
-	ngx_gluu_uma_host_config	uma_am_host[3];
-	ngx_str_t	uma_sent_user_claims;
-	ngx_str_t	cookie_name;
-	ngx_int_t	cookie_lifespan;
- }ngx_gluu_ox_loc_conf_t;
+ 	EVP_CIPHER_CTX 	*encrypt_ctx;
+ 	EVP_CIPHER_CTX 	*decrypt_ctx;
+ }ox_cfg;
 
 typedef struct {
-	/* (optional) external OP discovery page */
-	ngx_str_t 			discover_url;
-	ngx_str_t 			cookie_path;
-	ngx_str_t 			cookie;
-	ngx_str_t 			authn_header;
-	ngx_int_t 			return401;
-	ngx_array_t			*pass_cookies;
-} oidc_dir_cfg;
+	ngx_str_t 		*cookie_path;
+	ngx_str_t 		cookie;
+	ngx_str_t 		authn_header;
+	ngx_int_t 		return401;
+	ngx_array_t 	*pass_cookies;
+} ox_dir_cfg;
 
 typedef struct {
 	ngx_pool_t 						*pool;		/* pool to be used for this session */
@@ -224,13 +252,13 @@ utils_request_has_parameter(
 ngx_int_t
 ngx_gluu_ox_oidc_handle_redirect_uri_request (
 							ngx_http_request_t 		*r,
-							ngx_gluu_ox_loc_conf_t 	*s_cfg
+							ox_cfg 	*s_cfg
 							/*session_rec *session */);
 
 ngx_int_t
 ngx_gluu_ox_oidc_proto_is_redirect_authorization_response(
 			 						ngx_http_request_t 			*r,
-			 						ngx_gluu_ox_loc_conf_t 		*s_cfg );
+			 						ox_cfg 		*s_cfg );
 /* Memcached module */
 ngx_int_t
 ngx_gluu_ox_memcache_init( 
@@ -258,27 +286,6 @@ ngx_gluu_ox_memcached_delete(
 void
 ngx_http_memcached_destroy( void );
 
-/*
-#include <apr_pools.h>
-#include <apr_uuid.h>
-#include <apr_tables.h>
-#include <apr_time.h>
-
-typedef struct {
-	apr_pool_t 	*pool;
-	apr_uuid_t 	*uuid;
-	const char 	*remote_user;
-	apr_table_t	*entries;
-	const char 	*encoded;
-	apr_time_t	expiry;
-	long 		maxamage;
-
-	int 		dirty;
-	int 		cached;
-	int 		written;
-} session_rec;
-*/
-
 typedef struct {
 	ngx_str_t 		session_id;
 	ngx_str_t 		username;
@@ -296,7 +303,7 @@ typedef struct {
 ngx_int_t
 ngx_gluu_ox_oidc_restore_proto_state(
 							ngx_http_request_t 		*r,
-							ngx_gluu_ox_loc_conf_t 	*s_cfg,
+							ox_cfg 	*s_cfg,
 							u_char 					*state,
 							json_t 					**proto_state );
 
@@ -311,7 +318,7 @@ ngx_gluu_ox_oidc_get_state_cookie_name(
 void
 ngx_gluu_ox_oidc_util_set_cookie(
 						ngx_http_request_t 	*r,
-						ngx_gluu_ox_loc_conf_t 		*s_conf,
+						ox_cfg 		*s_conf,
 						ngx_str_t 			*cookie_name,
 						ngx_str_t 			*cookie_value,
 						time_t 				expires );
