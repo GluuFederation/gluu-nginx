@@ -261,7 +261,7 @@ static ngx_http_module_t ngx_http_gluu_ox_module_ctx = {
 static
 ngx_command_t ngx_http_gluu_ox_commands[] = {
 	{ ngx_string("Gluu_OX"),
-	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	  NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
 	  ngx_http_gluu_ox_module_init,
 	  NGX_HTTP_LOC_CONF_OFFSET,
 	  0,
@@ -324,10 +324,27 @@ ngx_http_gluu_ox_module_handler( ngx_http_request_t	*r )
 //	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "exten 		 : %s\n", r->exten.data );
 //	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "unparsed_uri: %s\n", r->unparsed_uri.data );
 //	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "content-type: %s\n", r->headers_in.chunked );
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "schema_start: %s\n", r->schema_start );
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "schema_end: %s\n", r->schema_end );
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "header_start: %s\n", r->header_start );
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "header_end: %s\n", r->header_end );
+
+	if( r->main->internal ) {
+		return NGX_DECLINED;
+	}
+	
+	r->main->internal = 1;
 
 	/* Getting module configuration struct info */
-//	ox_cfg *conf = (ox_cfg *)ngx_http_get_module_loc_conf( r, ngx_http_gluu_ox_module );
+	ox_cfg *conf = (ox_cfg *)ngx_http_get_module_loc_conf( r, ngx_http_gluu_ox_module );
 
+	if( conf == NULL )
+		return NGX_ERROR;
+
+	if( ngx_ox_is_discovery_response( r, conf ) == NGX_OK ) {
+		/* this is response from the OP discovery page */
+///		return ox_handle_discovery_response( r, conf );
+	}
 
 	if( r->headers_in.server.len > 0)
 		return ox_utils_html_send_error( 
@@ -335,25 +352,12 @@ ngx_http_gluu_ox_module_handler( ngx_http_request_t	*r )
 								(char *)r->headers_in.server.data,
 								(char *)ngx_gluu_ox_get_request_url(r) == NULL ? "NULL" : (char *)ngx_gluu_ox_get_request_url(r),
 								NGX_HTTP_UNAUTHORIZED );
-/*	if( oidc_util_request_matchs_url( r, ox_loc_conf->redirect_uris ) == NGX_ERROR )
-	{
 
-	}
-	else
-	{
-		return ox_utils_html_send_error( 
-								r, 
+	return ox_utils_html_send_error( 
+								r,
 								"ngx_http_gluu_ox_module_handler",
-								"Match!",
-								NGX_HTTP_OK );
-
-	}*/
-/*	return ox_utils_html_send_error( 
-								r, 
-								"ngx_http_gluu_ox_module_handler",
-								"All configuration OKAY!",
-								NGX_HTTP_OK );*/
-	return NGX_OK;
+								"this is main request",
+								NGX_HTTP_UNAUTHORIZED );
 }
 
 
@@ -366,6 +370,75 @@ ngx_http_gluu_ox_module_init( ngx_conf_t *cf, ngx_command_t *cmd, void *conf )
 	clcf->handler = ngx_http_gluu_ox_module_handler;
 
 	return NGX_CONF_OK;
+}
+
+/*
+ * find out whether the request is a response from an IDP discovery page
+ */
+ngx_int_t
+ngx_ox_is_discovery_response (
+						ngx_http_request_t	 	*r,
+						ox_cfg 					*cfg ) {
+	/*
+	 * prereq : this is a call to the configured redirect_uri, now see if:
+	 * the OX_DISC_OP_PARAM is present
+	 */
+
+	return ox_utils_request_has_parameter( r, OX_DISC_OP_PARAM );
+}
+
+/*
+ * handle a response from an IDP discovery page and/or handle third-party initiated SSO
+ */
+ngx_int_t
+ox_handle_discovery_response(
+						ngx_http_request_t 	*r,
+						ox_cfg 				*c ) {
+
+	ngx_str_t issuer, target_linked_uri, login_hint, auth_request_params;
+	if( ngx_http_arg( r, (u_char *)OX_DISC_OP_PARAM, sizeof( OX_DISC_OP_PARAM ) - 1, &issuer) != NGX_OK ) {
+		return ox_utils_html_send_error( 
+								r,
+								"ngx_gluu_ox",
+								"Wherever you came from, it sent you here with the wrong parameters...",
+								NGX_HTTP_INTERNAL_SERVER_ERROR );
+	}
+
+	if( ngx_http_arg( r, (u_char *)OX_DISC_RT_PARAM, sizeof( OX_DISC_RT_PARAM ) - 1, &target_linked_uri) != NGX_OK ) {
+		if( c->default_sso_url.data == NULL ) {
+			return ox_utils_html_send_error( 
+								r,
+								"ngx_gluu_ox",
+								"SSO to this module without specifying a \"\" parameter is not possible because OXDefaultURL is not set.",
+								NGX_HTTP_INTERNAL_SERVER_ERROR );
+
+		}
+
+		target_linked_uri = c->default_sso_url;
+	}
+
+	if( ngx_http_arg( r, (u_char *)OX_DISC_LH_PARAM, sizeof( OX_DISC_LH_PARAM ) - 1, &login_hint) != NGX_OK ) {
+	}
+
+	if( ngx_http_arg( r, (u_char *)OX_DISC_AR_PARAM, sizeof( OX_DISC_AR_PARAM ) - 1, &auth_request_params) != NGX_OK ) {
+	}
+
+	/* find out if the user entered an account name or selected an OP manually */
+	if( ngx_strstr( issuer.data, (u_char *)"@") != NULL ) {
+		if( login_hint.data == NULL ) {
+			login_hint.data = ngx_pstrdup( r->pool, &issuer );
+			login_hint.len = ngx_strlen( login_hint.data );
+		}
+
+		/* got an account name as input, perform OP discovery with that */
+
+	}
+
+	return ox_utils_html_send_error( 
+								r,
+								"ox_handle_discovery_response",
+								"Not not_found",
+								NGX_HTTP_UNAUTHORIZED );
 }
 
 ngx_int_t
@@ -399,104 +472,73 @@ ngx_gluu_ox_oidc_get_state_cookie_name(
 	return ret;
 }
 
-/**
- * restore the state that was maintained between authorization request 
- * and response in an encrypted cookie
- **/
 /*
-ngx_int_t
-ngx_gluu_ox_oidc_restore_proto_state(
-							ngx_http_request_t 		*r,
-							ox_cfg 	*s_cfg,
-							u_char 					*state,
-							json_t 					**proto_state ) {
-	ngx_str_t 	cookie_name;
-	ngx_str_t 	cookie;
-	
-	cookie_name.data = ngx_gluu_ox_oidc_get_state_cookie_name( r, state );
-	cookie_name.len = ngx_strlen( cookie_name.data );
-*/
-	/* get the state cookie value first */
-/*	ngx_int_t 	ret = ngx_http_parse_multi_header_lines( &r->headers_in.cookies, &cookie_name, &cookie );
+ * authenticate the user to the selected OP, if the OP is not selected yet perform discovery first
+ */
+static ngx_int_t
+ox_authenticate_user(
+		ngx_http_request_t 	*r,
+		ox_cfg 				*c,
+		ox_provider_t 		*provider,
+		ngx_str_t 			*original_url,
+		ngx_str_t 			*login_hint,
+		ngx_str_t 			*id_token_hint,
+		u_char 				*prompt,
+		ngx_str_t 			auth_request_params ) {
 
-	if( ret == NGX_DECLINED ) {
-		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "no \"%s\" state cookie found ", cookie );
-		return NGX_ERROR;
+	if( provider == NULL ) {
+		/* TODO: should we use an explicit redirect to the discovery endpoint ( maybe a "discovery" param to the redirect_uri )?*/
+		if( c->metadata_dir.data != NULL )
+			return ox_discovery( r, c );
 	}
-*/
-	/* clear state cookie because we don`t need it anymore */
-/*
+
 	return NGX_OK;
 
 }
-*/
-
-/**
- * set a cookie in the HTTP response headers
- **/
-void
-ngx_gluu_ox_oidc_util_set_cookie(
-						ngx_http_request_t 			*r,
-						ox_cfg 		*s_conf,
-						ngx_str_t 					*cookie_name,
-						ngx_str_t 					*cookie_value,
-						time_t 						expires ) {
-
-//	ngx_http_cookie_loc_conf_t 	 *cookie_cf = (ngx_http_cookie_loc_conf_t *)ngx_http_get_module_loc_conf( r, ngx_http_gluu_ox_module );
-
-//	ngx_table_elt_t 	*set_cookie;
-
-//	u_char 		*cookies, *current_cookies, *expires_string = NULL; 
-
-	/* see if we need to clear the cookie */
-//	if( ngx_strcmp( cookie_value->data, "" ) == 0 )
-//		expires = 0;
-
-//	if( expires != 1 ) {
-		
-//	}
-
-//	if( expires_string == NULL )
-//		ngx_sprintf( r->pool, " ; expires=%s", expires_string );
-	/* construct the cookie value */
-/*	ngx_sprintf( cookies, "%s=%s;Path=%s%s%s%s%s",
-							cookie_name->data,
-							cookie_value->data,
-							ngx_gluu_ox_oidc_util_get_cookie_path( r, s_conf );
-							( expires_string == NULL ) ? "" : ngx_sprintf( r->pool, " ; expires=%s", expires_string )
-							)
-*/
-}
 
 /*
- * get the cookie path setting and check that it matches the request path; cook it up if it is not set
+ * present the user with an OP selection screen
  */
-/*
-u_char *
-ngx_gluu_ox_oidc_util_get_cookie_path(
-							ngx_http_request_t 			*r,
-							ox_cfg 		*s_conf ) {
-	u_char *rv = NULL;
-	ngx_str_t 	request_path;
-	size_t 		root;
+ngx_int_t
+ox_discovery(
+		ngx_http_request_t 		*r,
+		ox_cfg 					*c ) {
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "entering ox_discovery\n" );
 
-	if( ngx_http_map_uri_to_path( r, &request_path, &root, 0 ) == NULL ) {
-		ngx_http_finalize_request( r, NGX_HTTP_INTERNAL_SERVER_ERROR );
-		return NULL;
+	u_char *current_url = ngx_gluu_ox_get_request_url( r );
+
+	if( current_url == NULL )
+		return NGX_DECLINED;
+
+	if( c->discover_url != NULL ) {
+		/* yes, assemble the parameters for external discovery */
+		ngx_str_t url;
+		u_char *cl = ngx_palloc( r->pool, sizeof(u_char *) );
+		u_char *rl = ngx_palloc( r->pool, sizeof(u_char *) );
+
+		ngx_escape_uri( cl, current_url, ngx_strlen( current_url ), NGX_ESCAPE_URI );
+		ngx_escape_uri( rl, c->redirect_uri.data, c->redirect_uri.len, NGX_ESCAPE_URI );
+
+		ngx_sprintf( url.data, "%s%s%s=%s&%s=%s", 
+							cfg->discover_url,
+							ngx_strchr( cfg->discover_url, '?') != NULL ? "&" : "?",
+							OX_DISC_RT_PARAM, cl,
+							OX_DISC_CB_PARAM, rl );
+		url.len = ngx_strlen( url.data );
+
+		/* log what we`re about to do */
+		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "redirecting to external discovery page: %s\n", url );
+
+		r->headers_out.location->hash = 1;
+		ngx_str_set( &r->headers_out.location->key, "Location" );
+		r->headers_out.location->value = url;
+
+		return HTTP_MOVED_TEMPORARILY;
 	}
 
-	if( s_conf->cookie_path != NULL || ngx_strcmp( s_conf->cookie_path, "" ) != 0 ) {
-		if( ngx_strncmp( s_conf->cookie_path, request_path.data, ngx_strlen(s_conf->cookie_path) ) == 0 )
-			rv = s_conf->cookie_path;
-		else {
-			ngx_conf_log_error( NGX_LOG_WARN, s_conf, 0, 
-				"cookie_path (%s) not a substring of request path, using request path(%s) for cookie", s_conf->cookie_path, request_path );
+	
 
-			rv = request_path;
-		}
-	} else {
-		rv = request_path;
-	}
-	return (rv);
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "current url : %s\n", current_url );
+
+	return NGX_OK;
 }
-*/

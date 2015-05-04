@@ -192,6 +192,9 @@ oidc_util_request_matchs_url(
 	return NGX_OK;
 }
 
+/*
+ * get the URL that is currently being accessed
+ */
 u_char *
 ngx_gluu_ox_get_request_url( ngx_http_request_t *r ) {
 
@@ -289,12 +292,14 @@ ngx_gluu_ox_get_request_url( ngx_http_request_t *r ) {
 		p = ngx_copy( p, r->unparsed_uri.data, uri_len );
 	}
 
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "========> args: %s\n", r->args.data );
+
 	if( r->args.len > 0 ) {
 		( *p ++ ) = '?';
-		p = ngx_sprintf( p, "%V", r->args.data );
+		p = ngx_copy( p, r->args.data, r->args.len );
 	}
 
-	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "===== full url %s======\n", buf );
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "=========> full url %s\n", buf );
 
 	return buf;
 }
@@ -341,14 +346,15 @@ ngx_gluu_ox_parse_url(
 }
 
 ngx_int_t 
-utils_request_has_parameter( 
-						ngx_http_request_t *r,
-						const char *param )
+ox_utils_request_has_parameter( 
+						ngx_http_request_t 	*r,
+						const char 			*param )
 {
-	if( r->args.data == NULL || ngx_strcmp( r->args.data, (u_char *)"") == 0 )
+	if( r->args.data == NULL || r->args.len == 0 )
 		return NGX_ERROR;
 
-	u_char *option1 = NULL, *option2 = NULL;
+	u_char *option1 = ngx_palloc( r->pool, sizeof(u_char *) );
+	u_char *option2 = ngx_palloc( r->pool, sizeof(u_char *) );
 
 	ngx_sprintf( option1, "%s=", param );
 	ngx_sprintf( option2, "&%s=", param );

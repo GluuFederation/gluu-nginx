@@ -29,6 +29,7 @@
 #include <ngx_http.h>
 #include <ngx_inet.h>
 #include <nginx.h>
+#include <string.h>
 
 #include "cache/cache.h"
 #include "ngx_gluu_ox_config.h"
@@ -234,7 +235,9 @@ ngx_int_t
 oidc_util_request_matchs_url(
 						ngx_http_request_t 	*r,
 						ngx_str_t			url );
-
+/*
+ * get the URL that is currently being accessed
+ */
 u_char *
 ngx_gluu_ox_get_request_url( ngx_http_request_t *r );
 
@@ -244,8 +247,26 @@ ngx_gluu_ox_parse_url(
 				ngx_str_t 	*uri,
 				ngx_str_t 	*args );
 
+ngx_int_t
+ngx_ox_is_discovery_response (
+						ngx_http_request_t	 	*r,
+						ox_cfg 					*cfg );
+
+ngx_int_t
+ox_handle_discovery_response(
+						ngx_http_request_t 	*r,
+						ox_cfg 				*c );
+
+/*
+ * present the user with an OP selection screen
+ */
+ngx_int_t
+ox_discovery(
+		ngx_http_request_t 		*r,
+		ox_cfg 					*c );
+
 ngx_int_t 
-utils_request_has_parameter( 
+ox_utils_request_has_parameter( 
 						ngx_http_request_t 	*r,
 						const char 			*param );
 
@@ -255,6 +276,11 @@ ngx_gluu_ox_oidc_handle_redirect_uri_request (
 							ox_cfg 	*s_cfg
 							/*session_rec *session */);
 
+ngx_int_t
+ox_target_link_uri_matches_configuration(
+							ngx_http_request_t 		*r,
+							ox_cfg 					*cfg,
+							ngx_str_t 				*target_link_uri );
 ngx_int_t
 ngx_gluu_ox_oidc_proto_is_redirect_authorization_response(
 			 						ngx_http_request_t 			*r,
@@ -322,5 +348,4 @@ ngx_gluu_ox_oidc_util_set_cookie(
 						ngx_str_t 			*cookie_name,
 						ngx_str_t 			*cookie_value,
 						time_t 				expires );
-
 #endif
