@@ -102,7 +102,7 @@ ox_utils_html_send(
 	escape_title = ngx_pnalloc( r->pool, ngx_strlen( title ) + 1 );
 	ngx_escape_html( escape_title, title,  ngx_strlen( title ) + 1 );
 
-	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "======= escape_title : %s======\n", escape_title );
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "======= escape_title : %s======\n", escape_title );
 
 	load_tag = ngx_pnalloc( r->pool, sizeof(" onload=\"%s()\"") + sizeof(on_load) );
 	ngx_sprintf( load_tag, " onload=\"%s()\"", on_load ? on_load : (u_char *)"");

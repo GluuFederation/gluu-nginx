@@ -21,12 +21,42 @@
  * OTHERS DEALINGS IN THE SOFTWARE.
  */
 
+#ifndef _OXD_CLIENT_H
+#define _OXD_CLIENT_H
+
+
+#include <ngx_config.h>
+#include <ngx_core.h>
+#include <ngx_http.h>
+#include <ngx_inet.h>
+#include <nginx.h>
+
+ngx_int_t 
+oxd_discovery(
+				ngx_http_request_t 	*r,
+				ngx_str_t 			*hostname,
+				ngx_int_t 			portnum,
+				ngx_str_t 			*discovery_url,
+				u_char 				*result );
+
 /*
  * connect to the remote host
  */
-static ngx_int_t
+ngx_int_t
 do_connect( 
-			ngx_socket_t 	**s
-			ngx_pool_t		*mp,
-			ngx_str_t 		*hostname,
-			ngx_uint_t 		port);
+			ngx_http_request_t 	*r,
+			ngx_socket_t 		*s,
+			ngx_str_t 			*host,
+			ngx_int_t 			port);
+
+/*
+ * Send a request as a oxd protocol
+ * Write the received response to the standard output until the EOF
+ */
+ngx_int_t 
+do_client_task(
+				ngx_http_request_t 	*r,
+				ngx_socket_t 		s, 
+				u_char	 			*req_str,
+				u_char 				*resp_str );
+#endif

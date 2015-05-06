@@ -34,103 +34,28 @@ ngx_http_gluu_ox_create_loc_config(ngx_conf_t *cf)
 		return NGX_CONF_ERROR;
 
 	loc_conf->merged = NGX_CONF_UNSET_UINT;
-/*	ngx_str_set( &loc_conf->redirect_uri, "" );
-	ngx_str_set( &loc_conf->discover_url, "" );
-	ngx_str_set( &loc_conf->default_sso_url, "" );
-	ngx_str_set( &loc_conf->default_slo_url, "" ); */
 	loc_conf->public_keys = NGX_CONF_UNSET_PTR;
 	loc_conf->private_keys = NGX_CONF_UNSET_PTR;
-
-/*	ngx_str_set( &loc_conf->provider.metadata_url, "" );
-	ngx_str_set( &loc_conf->provider.issuer, "" );
-	ngx_str_set( &loc_conf->provider.authorization_endpoint_url, "" );
-	ngx_str_set( &loc_conf->provider.token_endpoint_url, "" );
-	ngx_str_set( &loc_conf->provider.token_endpoint_auth, "" );
-	ngx_str_set( &loc_conf->provider.token_endpoint_params, "" );
-	ngx_str_set( &loc_conf->provider.userinfo_endpoint_url, "" );
-	ngx_str_set( &loc_conf->provider.client_id, "" );
-	ngx_str_set( &loc_conf->provider.client_secret, "" );
-	ngx_str_set( &loc_conf->provider.registration_endpoint_url, "" );
-	ngx_str_set( &loc_conf->provider.registration_endpoint_json, "" );
-	ngx_str_set( &loc_conf->provider.check_session_iframe, "" );
-	ngx_str_set( &loc_conf->provider.end_session_endpoint, "" );
-	ngx_str_set( &loc_conf->provider.jwks_uri, "" ); */
-
-	loc_conf->provider.ssl_validate_server = NGX_CONF_UNSET; // OX_DEFAULT_SSL_VALIDATE_SERVER;
-//	ngx_str_set( &loc_conf->provider.client_name, OX_DEFAULT_CLIENT_NAME );
-/*	ngx_str_set( &loc_conf->provider.client_contact, "" );
-	ngx_str_set( &loc_conf->provider.registration_token, "" );
-	ngx_str_set( &loc_conf->provider.scope, OX_DEFAULT_SCOPE );
-	ngx_str_set( &loc_conf->provider.response_type, OX_DEFAULT_RESPONSE_TYPE );
-	ngx_str_set( &loc_conf->provider.response_mode, "" ); */
-	loc_conf->provider.jwks_refresh_interval = NGX_CONF_UNSET; //OX_DEFAULT_JWKS_REFRESH_INTERVAL;
-	loc_conf->provider.idtoken_iat_slack = NGX_CONF_UNSET; //OX_DEFAULT_IDTOKEN_IAT_SLACK;
-	loc_conf->provider.session_max_duration = NGX_CONF_UNSET; //OX_DEFAULT_SESSION_MAX_DURATION;
-/*	ngx_str_set( &loc_conf->provider.auth_request_params, "" );
-
-	ngx_str_set( &loc_conf->provider.client_jwks_uri, "" );
-	ngx_str_set( &loc_conf->provider.id_token_signed_response_alg, "" );
-	ngx_str_set( &loc_conf->provider.id_token_encrypted_response_alg, "" );
-	ngx_str_set( &loc_conf->provider.id_token_encrypted_response_enc, "" );
-	ngx_str_set( &loc_conf->provider.userinfo_signed_response_alg, "" );
-	ngx_str_set( &loc_conf->provider.userinfo_encrypted_response_alg, "" );
-	ngx_str_set( &loc_conf->provider.userinfo_encrypted_response_enc, "" );*/
-
-	loc_conf->oauth.ssl_validate_server = NGX_CONF_UNSET; //OX_DEFAULT_SSL_VALIDATE_SERVER;
-/*	ngx_str_set( &loc_conf->oauth.client_id, "" );
-	ngx_str_set( &loc_conf->oauth.client_secret, "" );
-	ngx_str_set( &loc_conf->oauth.introspection_endpoint_url, "" );
-	ngx_str_set( &loc_conf->oauth.introspection_endpoint_method, OX_DEFAULT_OAUTH_ENDPOINT_METHOD );
-	ngx_str_set( &loc_conf->oauth.introspection_endpoint_params, "" );
-	ngx_str_set( &loc_conf->oauth.introspection_endpoint_auth, "" );
-	ngx_str_set( &loc_conf->oauth.introspection_token_param_name, "" );
-
-	ngx_str_set( &loc_conf->oauth.introspection_token_expiry_claim_name, OX_DEFAULT_OAUTH_EXPIRY_CLAIM_NAME );
-	ngx_str_set( &loc_conf->oauth.introspection_token_expiry_claim_format, OX_DEFAULT_OAUTH_EXPIRY_CLAIM_FORMAT );*/
-	loc_conf->oauth.introspection_token_expiry_claim_required = NGX_CONF_UNSET; //OX_DEFAULT_OAUTH_EXPIRY_CLAIM_REQUIRED;
-
-/*	ngx_str_set( &loc_conf->oauth.remote_user_claim.claim_name, OX_DEFAULT_OAUTH_CLAIM_REMOTE_USER );
-	ngx_str_set( &loc_conf->oauth.remote_user_claim.reg_exp, "" );
-
-	ngx_str_set( &loc_conf->oauth.verify_jwks_uri, "" ); */
+	loc_conf->provider.ssl_validate_server = NGX_CONF_UNSET;
+	loc_conf->provider.jwks_refresh_interval = NGX_CONF_UNSET;
+	loc_conf->provider.idtoken_iat_slack = NGX_CONF_UNSET;
+	loc_conf->provider.session_max_duration = NGX_CONF_UNSET;
+	loc_conf->provider.oxd_port = NGX_CONF_UNSET_UINT;
+	loc_conf->oauth.ssl_validate_server = NGX_CONF_UNSET;
+	loc_conf->oauth.introspection_token_expiry_claim_required = NGX_CONF_UNSET;
 	loc_conf->oauth.verify_public_keys = NGX_CONF_UNSET_PTR;
 	loc_conf->oauth.verify_shared_keys = NGX_CONF_UNSET_PTR;
-
-/*
-	loc_conf->cache = &ox_cache_memcache;
-	loc_conf->cache_cfg = NULL;
-*/
-//	ngx_str_set( &loc_conf->cache_file_dir, "" );
-	loc_conf->cache_file_clean_interval = NGX_CONF_UNSET; //OX_DEFAULT_CACHE_FILE_CLEAN_INTERVAL;
-//	ngx_str_set( &loc_conf->cache_memcache_servers, "" );
-	loc_conf->cache_shm_size_max = NGX_CONF_UNSET; //OX_DEFAULT_CACHE_SHM_SIZE;
-	loc_conf->cache_shm_entry_size_max = NGX_CONF_UNSET; //OX_DEFAULT_CACHE_SHM_ENTRY_SIZE_MAX;
-
-#ifdef USE_LIBHIREDIS
-//	ngx_str_set( &loc_conf->cache_redis_server, "" );
-#endif
-
-//	ngx_str_set( &loc_conf->metadata_dir, "" );
-	loc_conf->session_type = NGX_CONF_UNSET; //OX_DEFAULT_SESSION_TYPE;
-
-	loc_conf->http_timeout_long = NGX_CONF_UNSET; //OX_DEFAULT_HTTP_TIMEOUT_LONG;
-	loc_conf->http_timeout_short = NGX_CONF_UNSET; //OX_DEFAULT_HTTP_TIMEOUT_SHORT;
-	loc_conf->state_timeout = NGX_CONF_UNSET; //OX_DEFAULT_STATE_TIMEOUT;
-	loc_conf->session_inactivity_timeout = NGX_CONF_UNSET; //OX_DEFAULT_SESSION_INACTIVITY_TIMEOUT;
-
-/*	ngx_str_set( &loc_conf->cookie_domain, "" );
-	ngx_str_set( &loc_conf->claim_delimiter, OX_DEFAULT_CLAIM_DELIMITER );
-	ngx_str_set( &loc_conf->claim_prefix, OX_DEFAULT_CLAIM_PREFIX );
-	ngx_str_set( &loc_conf->remote_user_claim.claim_name, OX_DEFAULT_CLAIM_REMOTE_USER );
-	ngx_str_set( &loc_conf->remote_user_claim.reg_exp, "" );*/
-	loc_conf->pass_idtoken_as = NGX_CONF_UNSET; //OX_PASS_IDTOKEN_AS_CLAIMS;
-	loc_conf->cookie_http_only = NGX_CONF_UNSET; //OX_DEFAULT_COOKIE_HTTPONLY;
-
-//	ngx_str_set( &loc_conf->outgoing_proxy, "" );
-//	ngx_str_set( &loc_conf->crypto_passphrase, "" );
-
-	loc_conf->scrub_request_headers = NGX_CONF_UNSET; //OX_DEFAULT_SCRUB_REQUEST_HEADERS;
-
+	loc_conf->cache_file_clean_interval = NGX_CONF_UNSET;
+	loc_conf->cache_shm_size_max = NGX_CONF_UNSET;
+	loc_conf->cache_shm_entry_size_max = NGX_CONF_UNSET;
+	loc_conf->session_type = NGX_CONF_UNSET;
+	loc_conf->http_timeout_long = NGX_CONF_UNSET;
+	loc_conf->http_timeout_short = NGX_CONF_UNSET;
+	loc_conf->state_timeout = NGX_CONF_UNSET;
+	loc_conf->session_inactivity_timeout = NGX_CONF_UNSET;
+	loc_conf->pass_idtoken_as = NGX_CONF_UNSET;
+	loc_conf->cookie_http_only = NGX_CONF_UNSET;
+	loc_conf->scrub_request_headers = NGX_CONF_UNSET;
 
 	ngx_conf_log_error( NGX_LOG_EMERG, cf, 0, "return to create loc config" );
 
@@ -185,6 +110,9 @@ ngx_http_gluu_ox_merge_loc_config( ngx_conf_t *cf, void *parent, void *child )
 	ngx_conf_merge_str_value( conf->provider.userinfo_signed_response_alg, prev->provider.userinfo_signed_response_alg, "" );
 	ngx_conf_merge_str_value( conf->provider.userinfo_encrypted_response_alg, prev->provider.userinfo_encrypted_response_alg, "" );
 	ngx_conf_merge_str_value( conf->provider.userinfo_encrypted_response_enc, prev->provider.userinfo_encrypted_response_enc, "" );
+	ngx_conf_merge_str_value( conf->provider.oxd_hostname, prev->provider.oxd_hostname, "" );
+	ngx_conf_merge_value( conf->provider.oxd_port, prev->provider.oxd_port, 0 );
+	ngx_conf_merge_str_value( conf->provider.logout_url, prev->provider.logout_url, "" );
 
 	ngx_conf_merge_value( conf->oauth.ssl_validate_server, prev->oauth.ssl_validate_server, OX_DEFAULT_SSL_VALIDATE_SERVER );
 	ngx_conf_merge_str_value( conf->oauth.client_id, prev->oauth.client_id, "" );
@@ -267,21 +195,47 @@ ngx_command_t ngx_http_gluu_ox_commands[] = {
 	  0,
 	  NULL },
 
-	{ ngx_string("OIDCDiscoverURL"),
+	{ ngx_string("OXCDiscoverURL"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
 	  offsetof(ox_cfg, discover_url),
 	  NULL },
 
-
-	{ ngx_string("redirect_uri"),
+	{ ngx_string("OXRedirectURI"),
 	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	  ngx_conf_set_str_slot,
 	  NGX_HTTP_LOC_CONF_OFFSET,
 	  offsetof(ox_cfg, redirect_uri),
 	  NULL },
 
+	{ ngx_string("OXMetadataURI"),
+	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	  ngx_conf_set_str_slot,
+	  NGX_HTTP_LOC_CONF_OFFSET,
+	  offsetof(ox_cfg, provider.metadata_url),
+	  NULL },
+
+  	{ ngx_string("OXProviderIssuer"),
+	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	  ngx_conf_set_str_slot,
+	  NGX_HTTP_LOC_CONF_OFFSET,
+	  offsetof(ox_cfg, provider.issuer),
+	  NULL },
+
+  	{ ngx_string("OXOxdHostName"),
+	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	  ngx_conf_set_str_slot,
+	  NGX_HTTP_LOC_CONF_OFFSET,
+	  offsetof(ox_cfg, provider.oxd_hostname),
+	  NULL },
+
+	{ ngx_string("OXOxdPortNum"),
+	  NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	  ngx_conf_set_num_slot,
+	  NGX_HTTP_LOC_CONF_OFFSET,
+	  offsetof(ox_cfg, provider.oxd_port),
+	  NULL },
 	ngx_null_command
 };
 
@@ -341,10 +295,34 @@ ngx_http_gluu_ox_module_handler( ngx_http_request_t	*r )
 	if( conf == NULL )
 		return NGX_ERROR;
 
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, 
+									"oxd<issuer: %s, hostname: %s, port:%d>\n", 
+									conf->provider.issuer.data,
+									conf->provider.oxd_hostname.data,
+									conf->provider.oxd_port );
+
+	u_char *result = NULL;
+	if( oxd_discovery( r, &conf->provider.oxd_hostname, conf->provider.oxd_port, &conf->provider.issuer, result ) != NGX_OK ) {
+		return ox_utils_html_send_error( 
+								r,
+								"oxd_discovery",
+								"failed",
+								NGX_HTTP_UNAUTHORIZED );
+	}
+
+	return ox_utils_html_send_error( 
+						r,
+						"oxd_discovery",
+						(char *) result,
+						NGX_HTTP_UNAUTHORIZED );
+
 	if( ngx_ox_is_discovery_response( r, conf ) == NGX_OK ) {
 		/* this is response from the OP discovery page */
 ///		return ox_handle_discovery_response( r, conf );
 	}
+	/* test */
+	if( conf->metadata_dir.data != NULL )
+		return ox_discovery( r, conf );
 
 	if( r->headers_in.server.len > 0)
 		return ox_utils_html_send_error( 
@@ -475,7 +453,7 @@ ngx_gluu_ox_oidc_get_state_cookie_name(
 /*
  * authenticate the user to the selected OP, if the OP is not selected yet perform discovery first
  */
-static ngx_int_t
+/*static ngx_int_t
 ox_authenticate_user(
 		ngx_http_request_t 	*r,
 		ox_cfg 				*c,
@@ -485,16 +463,20 @@ ox_authenticate_user(
 		ngx_str_t 			*id_token_hint,
 		u_char 				*prompt,
 		ngx_str_t 			auth_request_params ) {
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "==============> entering ox_authenticate_user\n" );
 
-	if( provider == NULL ) {
+	if( provider == NULL ) {*/
 		/* TODO: should we use an explicit redirect to the discovery endpoint ( maybe a "discovery" param to the redirect_uri )?*/
-		if( c->metadata_dir.data != NULL )
+/*		if( c->metadata_dir.data != NULL )
 			return ox_discovery( r, c );
-	}
+		if( ox_provider_static_config( r, c, &provider ) == NGX_ERROR )
+			return NGX_HTTPINTERNAL_SERVER_ERROR;
 
+	}
+	
 	return NGX_OK;
 
-}
+}*/
 
 /*
  * present the user with an OP selection screen
@@ -505,14 +487,16 @@ ox_discovery(
 		ox_cfg 					*c ) {
 	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "entering ox_discovery\n" );
 
+	ngx_array_t 	arr;
+	ngx_str_t 		url;
 	u_char *current_url = ngx_gluu_ox_get_request_url( r );
 
 	if( current_url == NULL )
 		return NGX_DECLINED;
 
-	if( c->discover_url != NULL ) {
+	if( c->discover_url.data != NULL ) {
 		/* yes, assemble the parameters for external discovery */
-		ngx_str_t url;
+		
 		u_char *cl = ngx_palloc( r->pool, sizeof(u_char *) );
 		u_char *rl = ngx_palloc( r->pool, sizeof(u_char *) );
 
@@ -520,8 +504,8 @@ ox_discovery(
 		ngx_escape_uri( rl, c->redirect_uri.data, c->redirect_uri.len, NGX_ESCAPE_URI );
 
 		ngx_sprintf( url.data, "%s%s%s=%s&%s=%s", 
-							cfg->discover_url,
-							ngx_strchr( cfg->discover_url, '?') != NULL ? "&" : "?",
+							c->discover_url.data,
+							ngx_strchr( c->discover_url.data, '?') != NULL ? "&" : "?",
 							OX_DISC_RT_PARAM, cl,
 							OX_DISC_CB_PARAM, rl );
 		url.len = ngx_strlen( url.data );
@@ -533,12 +517,47 @@ ox_discovery(
 		ngx_str_set( &r->headers_out.location->key, "Location" );
 		r->headers_out.location->value = url;
 
-		return HTTP_MOVED_TEMPORARILY;
+		return NGX_HTTP_MOVED_TEMPORARILY;
 	}
 
-	
-
+	/* get a list of all providers configured in the metadata directory */
+	ox_metadata_list( r, c, &arr );
 	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "current url : %s\n", current_url );
 
 	return NGX_OK;
 }
+
+/*
+ * return the static provider configuration, i.e. from a metadata URL or configuration primitives
+ */
+/*static ngx_int_t
+ox_provider_static_config(
+				ngx_http_request_t 	*r,
+				ox_cfg 				*c,
+				ox_provider_t 		**provider ) {
+
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "entering ox_provider_static_config\n" );
+
+	json_t 		*j_provider = NULL;
+	u_char 		*s_json = NULL;*/
+
+	/* see if we should configure a static provider based on external (cached) metadata */
+/*	if( ( c->metadata_dir.data != NULL ) || ( c->provider.metadata_url.data == NULL ) ) {
+		*provider = &c->provider;
+		return NGX_OK;
+	}*/
+
+	/*********************************************/
+	/* get a provider memcached in cache server  */
+	/* feature */
+	/*********************************************/
+
+/*	if( s_json == NULL ) {
+		if( ox_metadata_provider_retrieve( r, c, NULL, c->provider.metadata_url.data, &j_provider, &s_json ) != NGX_OK ) {
+			ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, "could not retrieve metadata from url: %s\n", c->provider.metadata_url.data );
+
+			return NGX_ERROR;
+		}
+	}
+	
+}*/

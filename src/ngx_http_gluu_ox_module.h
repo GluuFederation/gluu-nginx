@@ -33,6 +33,7 @@
 
 #include "cache/cache.h"
 #include "ngx_gluu_ox_config.h"
+#include "oxd/oxd_client.h"
 
 #include <jansson.h>
 
@@ -97,6 +98,11 @@ typedef struct {
 	ngx_str_t 	userinfo_signed_response_alg;
 	ngx_str_t 	userinfo_encrypted_response_alg;
 	ngx_str_t 	userinfo_encrypted_response_enc;
+
+	/* for gluu oxd support */
+	ngx_str_t 	oxd_hostname;
+	ngx_int_t 	oxd_port;
+	ngx_str_t 	logout_url;
 }ox_provider_t;
 
 typedef struct {
@@ -348,4 +354,40 @@ ngx_gluu_ox_oidc_util_set_cookie(
 						ngx_str_t 			*cookie_name,
 						ngx_str_t 			*cookie_value,
 						time_t 				expires );
+
+
+/*****************************************************************/
+/* metadata.c 													 */ 
+/*****************************************************************/
+/*
+ * get a list of configured OX providers based on the entries 
+ * in the provider metadata directory
+ */
+ngx_int_t
+ox_metadata_list( 
+	ngx_http_request_t 		*r,
+	ox_cfg 					*c,
+	ngx_array_t 			*list );
+/*
+ * use OpenID Connect Discovery to get metadata for the specified issuer
+ */
+ngx_int_t
+ox_metadata_provider_retrieve(
+				ngx_http_request_t 	*r,
+				ox_cfg				*c,
+				u_char 				*issuer,
+				u_char 				*url,
+				json_t 				**j_metadata,
+				u_char 				**response);
+
+
+
+/****************************************************************/
+/* proto.c 														*/
+/****************************************************************/
+/*
+ * return the supported flows
+ */
+ngx_array_t *
+ox_proto_supported_flows( ngx_pool_t *pool );
 #endif

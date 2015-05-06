@@ -24,19 +24,19 @@
 
 #include "ngx_http_gluu_ox_module.h"
 
+/*
+ * return the supported flows
+ */
+ngx_array_t *
+ox_proto_supported_flows( ngx_pool_t *pool ) {
+	ngx_array_t 	*result = ngx_array_create( pool, 6, sizeof( const char * ));
 
-ngx_int_t
-ngx_gluu_ox_oidc_proto_is_redirect_authorization_response(
-			 						ngx_http_request_t 			*r,
-			 						ngx_gluu_ox_loc_conf_t 		*s_cfg )
-{
-	/* 
- 	 * prereq: this is a call to the configured redirect_uri; 
- 	 * see if it is a GET with stat and id_token or code parameters 
- 	 */
+	*(const char **) ngx_array_push( result ) = "code";
+	*(const char **) ngx_array_push( result ) = "id_token";
+	*(const char **) ngx_array_push( result ) = "id_token token";
+	*(const char **) ngx_array_push( result ) = "code id_token";
+	*(const char **) ngx_array_push( result ) = "code token";
+	*(const char **) ngx_array_push( result ) = "code id_token token";
 
- 	 return ( ( r->method == NGX_HTTP_GET ) 
- 	 			&& utils_request_has_parameter( r, "state" )
- 	 			&& ( utils_request_has_parameter( r, "id_token" )
- 	 						|| utils_request_has_parameter( r, "code" ) ) );
+	return result;
 }
