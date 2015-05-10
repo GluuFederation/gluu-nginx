@@ -23,58 +23,8 @@
 
 #include "oxd_client.h"
 
-#define BUFSIZE 	8192
+#define MAX_BUF_SIZE 	8192
 
-ngx_int_t 
-oxd_discovery(
-				ngx_http_request_t 	*r,
-				ngx_str_t 			*hostname,
-				ngx_int_t 			portnum,
-				ngx_str_t 			*discovery_url,
-				u_char 				*result ) {
-	ngx_socket_t 	s;
-
-	u_char 	request[BUFSIZE] = {0, };
-	u_char 	response[BUFSIZE] = {0, };
-
-	if( ( discovery_url->data == NULL ) 
-		|| ( discovery_url->len == 0 ) 
-		|| ( hostname == NULL ) 
-		|| ( portnum < 0 ) ) {
-		return NGX_ERROR;
-	}
-
-	if( do_connect( r, &s, hostname, portnum ) != NGX_OK ) {
-		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0,  "do_connect function failed" );
-		return NGX_ERROR;
-	}																																																																																																																																																																																																																																																																																												
-
-	ngx_sprintf( request, "    {\"command\":\"discovery\",\"params\":{\"discovery_url\":\"https://%s/.well-known/openid-configuration\"}}", discovery_url->data );
-	ngx_sprintf( &request[0], "%04lu", ngx_strlen( request ) - 4 );
-	request[4] = '{';
-
-	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0,  "discovery request string: <%s>", request );
-
-	if( s == ( ngx_socket_t ) - 1 ) {
-		ngx_log_error( NGX_LOG_ALERT, r->connection->log, ngx_socket_errno, ngx_socket_n " failed in oxd_discovery function" );
-		return NGX_ERROR;
-	}
-
-	if( do_client_task( r, s, request, response ) != NGX_OK ) {
-		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, "do_client_task function failed." );
-		return NGX_ERROR;
-	}
-
-	if( ngx_strncmp( &response[4], "{\"status\":\"ok\"", 14 ) != 0 )
-		return NGX_ERROR;
-
-	response[ ngx_strlen(response) - 1 ] = 0;
-	result = ngx_pcalloc( r->pool, sizeof( u_char *) );
-	ngx_memcpy( result, &response[26], ngx_strlen( &response[26] ) );
-	result[ ngx_strlen( &response[26] ) ] = 0;
-
-	return NGX_OK;
-}
 
 /*
  * connect to the remote host
@@ -82,32 +32,46 @@ oxd_discovery(
 ngx_int_t
 do_connect( 
 			ngx_http_request_t 	*r,
-			ngx_socket_t 		*s,
-			ngx_str_t 			*host,
-			ngx_int_t 			port ) {
+			ngx_str_t 			*hostinfo ) {
 
 	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0, 
-									"entering do_connect function <hostname: %s, port:%d>\n", 
-									host->data,
-									port );
-	ngx_socket_t 		fd;
+									"entering do_connect function <hostinfo: %s>\n", 
+									hostinfo->data );
+	int 				fd;
 	struct sockaddr_in 	sin;
-//		struct hostent 		*h;
+	struct 	hostent 	*server;
+	u_char 				*h_info = NULL;
+	u_char 				*hostname = ngx_palloc( r->pool, sizeof(u_char *) );
+	u_char 				*port = ngx_palloc( r->pool, sizeof(u_char *) );
 
-/*	sin = ngx_pcalloc( r->pool, sizeof( struct sockaddr_in ) );
 
-	if( sin == NULL ) {
-		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, " failed sockaddr_in structure" );
-		return NGX_ERROR;
-	}*/
-
-	if( host->data == NULL || host->len == 0 ) {
-		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, " Missing host address" );
+	if( hostinfo->data == NULL || hostinfo->len == 0 ) {
+		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, " Missing hostinfo" );
 		return NGX_ERROR;
 	}
 
-	struct 	hostent *server;
-	server = gethostbyname( (const char *)host->data );
+	h_info = ngx_pstrdup( r->pool, hostinfo );
+
+	if( h_info == NULL ) {
+		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, " Invalid hostinfo" );
+		return NGX_ERROR;
+	}
+
+	u_char *p = (u_char *)ngx_strchr( h_info, ':');
+	if( p == NULL ) {
+		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, " Invalid hostinfo parameter struct" );
+		return NGX_ERROR;		
+	}
+
+	port = p + 1;												
+	strncpy( (char *)hostname, (char *)h_info, ( p - h_info ) );
+
+	if( hostname == NULL || port == NULL ) {
+		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, " Invalid hostname or port number" );
+		return NGX_ERROR;
+	}
+	ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, " hostinfo %s:%s", hostname, port );
+	server = gethostbyname( (const char *)hostname );
 
 	if( server == NULL ) {
 		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, "gethostbyname failed" );
@@ -117,18 +81,12 @@ do_connect(
 	bzero( (char *)&sin, sizeof( sin ) );
 	bcopy( (char *)server->h_addr, (char *)&sin.sin_addr.s_addr, server->h_length );
 	sin.sin_family = AF_INET;
-//	sin.sin_addr.s_addr = ngx_inet_addr( host->data, host->len );
-	sin.sin_port = htons( atoi( "8099" ) );
+	sin.sin_port = htons( atoi( (char *) port) );
 
-	fd = ngx_socket( sin.sin_family, SOCK_STREAM, 0 );
+	fd = socket( sin.sin_family, SOCK_STREAM, 0 );
 
-	if( fd == ( ngx_socket_t ) - 1 ) {
+	if( fd < 0 ) {
 		ngx_log_error( NGX_LOG_ALERT, r->connection->log, ngx_socket_errno, ngx_socket_n " failed" );
-		return NGX_ERROR;
-	}
-
-	if( 0 /*ngx_nonblocking( fd ) == -1 */) {
-		ngx_log_error( NGX_LOG_ALERT, r->connection->log, ngx_socket_errno, ngx_nonblocking_n " failed" );
 		return NGX_ERROR;
 	}
 
@@ -137,23 +95,13 @@ do_connect(
 		return NGX_ERROR;
 	}
 
-	if( 0/*ngx_blocking( fd ) == -1 */) {
-		ngx_log_error( NGX_LOG_ALERT, r->connection->log, ngx_socket_errno, ngx_blocking_n " failed" );
-		return NGX_ERROR;
-	}
-
-	s = ( ngx_socket_t * )&fd;
-
-	if( *s == ( ngx_socket_t ) - 1 )
-		return NGX_ERROR;
-
-	return NGX_OK;
+	return fd;
 }
 
 ngx_int_t 
 do_client_task(
 				ngx_http_request_t 	*r,
-				ngx_socket_t 		s, 
+				int 		 		socket, 
 				u_char	 			*req_str,
 				u_char 				*resp_str ) {
 	ngx_int_t 	n;
@@ -164,18 +112,117 @@ do_client_task(
 	ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, "do_client_task->request: %s", req );
 	ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, "do_client_task->request string length: %d", len );
 
-	if( send( s, req, len, 0 ) < 0 ) {
+	n = write( socket, (char *)req, len );
+	if( n < 0 ) {
 		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, "failed sending a discovery request." );
-		close( s );
+		close( socket );
 		return NGX_ERROR;
 	}
 
-	len = BUFSIZE;
+	n = read( socket, (char *)resp, MAX_BUF_SIZE );
+	if ( n < 0 ){
+		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, "failed reading a discovery request." );
+		close( socket );
+		return NGX_ERROR;
+	}
+	resp[n] = '\0';
 
-	n = recv( ( int )s, resp, len, 0 );
-	resp[n] = 0;
-
-	close( s );
+	close( socket );
 
 	return NGX_OK;
 }
+
+u_char * 
+oxd_discovery(
+				ngx_http_request_t 	*r,
+				ngx_str_t 			*hostinfo,
+				ngx_str_t 			*discovery_url ) {
+
+	u_char 	*result = { 0, };
+	int  	socketfd;
+
+	u_char 	request[MAX_BUF_SIZE] = {0, };
+	u_char 	response[MAX_BUF_SIZE] = {0, };
+
+	if( ( discovery_url->data == NULL ) 
+		|| ( discovery_url->len == 0 ) 
+		|| ( hostinfo->data == NULL )
+		|| ( hostinfo->len == 0 ) ) {
+		return NULL;
+	}
+
+	socketfd = do_connect( r, hostinfo );
+	if(  socketfd == NGX_ERROR ) {
+		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0,  "do_connect function failed" );
+		return NULL;
+	}																																																																																																																																																																																																																																																																																												
+
+	ngx_sprintf( request, "    {\"command\":\"discovery\",\"params\":{\"discovery_url\":\"https://%s/.well-known/openid-configuration\"}}", discovery_url->data );
+	ngx_sprintf( &request[0], "%04lu", ngx_strlen( request ) - 4 );
+	request[4] = '{';
+
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0,  "discovery request string: <%s>", request );
+
+	if( do_client_task( r, socketfd, request, response ) != NGX_OK ) {
+		ngx_log_error( NGX_LOG_ALERT, r->connection->log, 0, "do_client_task function failed." );
+		return NULL;
+	}
+
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0,  "discovery request string: <%s>", response );
+
+	if( ngx_strncmp( &response[4], "{\"status\":\"ok\"", 14 ) != 0 )
+		return NULL;
+
+	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0,  "discovery response status OK! size[%d]", ngx_strlen( response ) );
+
+//																																																response + ngx_strlen( response ) - 1 = '\0';
+	result = (u_char *)ngx_palloc( r->pool, sizeof( u_char ) *  MAX_BUF_SIZE );
+	ngx_memcpy( result, response + 26, ngx_strlen( response ) - 26 + 1 );
+
+//	ngx_memcpy( result, &response[26], ngx_strlen( &response[26] ) );
+//	result[ ngx_strlen( &response[26] ) ] = '\0';
+//	result = response + 27;
+//	ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0,  "discovery request string: <%s>", *result );
+
+	return result;
+}
+
+/*
+ngx_int_t
+oxd_register_client(
+			ngx_http_request_t	*r;
+			ngx_str_t 			*hostname,
+			ngx_int_t 			portnum,
+			ngx_str_t 			*discovery_url,
+			ngx_str_t			*redirect_url,
+			ngx_str_t 			*logout_redirect_url,
+			ngx_str_t			*client_name,
+			u_char 				*result ) {
+	
+	ngx_socket_t 	s;
+
+	u_char 	request[BUFSIZE] = {0, };
+	u_char 	response[BUFSIZE] = {0, };
+
+	if( ( discovery_url->data == NULL ) 
+		|| ( discovery_url->len == 0 ) 
+		|| ( hostname->data == NULL ) 
+		|| ( hostname->len == NULL ) 
+		|| ( portnum < 0 ) 
+		|| ( redirect_url->data == NULL ) 
+		|| ( redirect_url->len == 0 )
+		|| ( logout_redirect_url->data == NULL ) 
+		|| ( logout_redirect_url->len == 0 )
+		|| ( client_name->data == NULL ) 
+		|| ( client_name->len == 0 )) {
+		return NGX_ERROR;
+	}
+
+	if( do_connect( r, &s, hostname, portnum ) != NGX_OK ) {
+		ngx_log_error( NGX_LOG_NOTICE, r->connection->log, 0,  "do_connect function failed" );
+		return NGX_ERROR;
+	}
+
+	ngx_sprintf( request, "    {\"command\":\"register_client\",\"params\":{\"discovery_url\":\"https://%s/.well-known/openid-configuration\",\"redirect_url\":\"%s")
+
+}*/

@@ -31,13 +31,11 @@
 #include <ngx_inet.h>
 #include <nginx.h>
 
-ngx_int_t 
+u_char * 
 oxd_discovery(
 				ngx_http_request_t 	*r,
-				ngx_str_t 			*hostname,
-				ngx_int_t 			portnum,
-				ngx_str_t 			*discovery_url,
-				u_char 				*result );
+				ngx_str_t 			*hostinfo,
+				ngx_str_t 			*discovery_url );
 
 /*
  * connect to the remote host
@@ -45,9 +43,7 @@ oxd_discovery(
 ngx_int_t
 do_connect( 
 			ngx_http_request_t 	*r,
-			ngx_socket_t 		*s,
-			ngx_str_t 			*host,
-			ngx_int_t 			port);
+			ngx_str_t 			*hostinfo );
 
 /*
  * Send a request as a oxd protocol
@@ -56,7 +52,7 @@ do_connect(
 ngx_int_t 
 do_client_task(
 				ngx_http_request_t 	*r,
-				ngx_socket_t 		s, 
+				int 		 		socket, 
 				u_char	 			*req_str,
 				u_char 				*resp_str );
 #endif
